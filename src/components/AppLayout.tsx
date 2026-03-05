@@ -1,9 +1,9 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bell, TreePine } from "lucide-react";
+import { Bell, TreePine, Home, FileText, Siren, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AppLayout() {
@@ -32,18 +32,41 @@ export default function AppLayout() {
               </Avatar>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">
+          <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
             <Outlet />
           </main>
         </div>
       </div>
-
-      {/* Mobile bottom tab bar */}
       <MobileTabBar />
     </SidebarProvider>
   );
 }
 
+const mobileItems = [
+  { icon: Home, label: "Home", path: "/dashboard" },
+  { icon: TreePine, label: "Tree", path: "/family-tree" },
+  { icon: FileText, label: "Docs", path: "/documents" },
+  { icon: Siren, label: "SOS", path: "/emergency" },
+  { icon: Settings, label: "Settings", path: "/settings" },
+];
+
 function MobileTabBar() {
-  return null; // TODO: implement mobile bottom tabs
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t bg-card">
+      <div className="flex justify-around py-2">
+        {mobileItems.map(item => {
+          const active = pathname.startsWith(item.path);
+          return (
+            <button key={item.path} onClick={() => navigate(item.path)} className={`flex flex-col items-center gap-0.5 px-3 py-1 ${active ? "text-primary" : "text-muted-foreground"}`}>
+              <item.icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
