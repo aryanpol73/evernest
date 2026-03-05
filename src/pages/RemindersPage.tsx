@@ -14,23 +14,22 @@ export default function RemindersPage() {
   const navigate = useNavigate();
 
   const expiringDocs = docs?.filter(d => d.expiry_date && !d.dismissed_reminder && differenceInDays(new Date(d.expiry_date), new Date()) >= 0) || [];
-
   const urgent = expiringDocs.filter(d => differenceInDays(new Date(d.expiry_date!), new Date()) <= 30);
   const upcoming = expiringDocs.filter(d => { const days = differenceInDays(new Date(d.expiry_date!), new Date()); return days > 30 && days <= 90; });
   const future = expiringDocs.filter(d => differenceInDays(new Date(d.expiry_date!), new Date()) > 90);
 
   const getMemberName = (id: string | null) => id ? members?.find(m => m.id === id)?.name || "Unknown" : "Unassigned";
 
-  const renderSection = (title: string, items: typeof expiringDocs, color: string) => {
+  const renderSection = (title: string, items: typeof expiringDocs, colorClass: string) => {
     if (!items.length) return null;
     return (
       <div className="mb-6">
-        <h2 className={`font-semibold text-sm mb-3 ${color}`}>{title} ({items.length})</h2>
+        <h2 className={`font-semibold text-sm mb-3 ${colorClass}`}>{title} ({items.length})</h2>
         <div className="space-y-2">
           {items.map(doc => {
             const days = differenceInDays(new Date(doc.expiry_date!), new Date());
             return (
-              <div key={doc.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
+              <div key={doc.id} className="flex items-center justify-between rounded-lg border bg-card p-4 shadow-sm">
                 <div>
                   <p className="font-medium text-sm">{doc.name}</p>
                   <p className="text-xs text-muted-foreground">{getMemberName(doc.member_id)} · Expires {doc.expiry_date}</p>
@@ -55,9 +54,18 @@ export default function RemindersPage() {
       <PageHeader title="Reminders" subtitle="Stay on top of important dates and expirations." />
 
       {isLoading ? (
-        <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
+        <div className="space-y-3">{[1, 2, 3].map(i => (
+          <div key={i} className="rounded-lg border bg-card p-4 shadow-sm"><Skeleton className="h-5 w-48 mb-2" /><Skeleton className="h-4 w-32" /></div>
+        ))}</div>
       ) : !expiringDocs.length ? (
-        <EmptyState icon={Bell} title="No upcoming reminders" description="All documents are up to date. ✅" />
+        <EmptyState
+          icon={Bell}
+          illustration="bell"
+          title="You're all caught up!"
+          description="No documents expiring soon. Add expiry dates to your documents to get timely reminders."
+          ctaLabel="Go to Documents"
+          onCta={() => navigate("/documents")}
+        />
       ) : (
         <>
           {renderSection("🔴 Urgent — Expiring within 30 days", urgent, "text-destructive")}

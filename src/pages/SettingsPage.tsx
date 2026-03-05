@@ -6,16 +6,19 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFamily, useUpdateFamily } from "@/hooks/useFamily";
+import { useUserSettings, useUpdateSettings, hashPin } from "@/hooks/useUserSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sun, Moon } from "lucide-react";
+import { Loader2, Sun, Moon, Shield, Lock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { data: family, isLoading } = useFamily();
+  const { data: settings } = useUserSettings();
   const updateFamily = useUpdateFamily();
+  const updateSettings = useUpdateSettings();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -26,6 +29,8 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
 
   if (family && !familyInitialized) {
     setFamilyName(family.name);
@@ -42,9 +47,7 @@ export default function SettingsPage() {
       toast({ title: "Profile updated", description: "Your name has been saved." });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleSaveFamily = () => {
@@ -53,26 +56,43 @@ export default function SettingsPage() {
   };
 
   const handleChangePassword = async () => {
-    if (newPassword !== confirmPassword) {
-      toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" });
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" });
-      return;
-    }
+    if (newPassword !== confirmPassword) { toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" }); return; }
+    if (newPassword.length < 6) { toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setNewPassword("");
-      setConfirmPassword("");
+      setNewPassword(""); setConfirmPassword("");
       toast({ title: "Password updated", description: "Your password has been changed." });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+  };
+
+  const handleSetPin = async () => {
+    if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) { toast({ title: "Error", description: "PIN must be exactly 6 digits.", variant: "destructive" }); return; }
+    if (newPin !== confirmPin) { toast({ title: "Error", description: "PINs do not match.", variant: "destructive" }); return; }
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { hash, salt } = await hashPin(newPin);
+      await updateSettings.mutateAsync({ id: user.id, pin_hash: hash, pin_salt: salt, pin_attempts: 0 });
+      setNewPin(""); setConfirmPin("");
+      toast({ title: "PIN updated", description: "Your app PIN has been changed." });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const handleRemovePin = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await updateSettings.mutateAsync({ id: user.id, pin_hash: null as any, pin_salt: null as any });
+      toast({ title: "PIN removed", description: "App PIN lock has been disabled." });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally { setSaving(false); }
   };
 
   return (
@@ -81,21 +101,13 @@ export default function SettingsPage() {
 
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
-              activeTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {tab}
-          </button>
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+          >{tab}</button>
         ))}
       </div>
 
-      {isLoading ? (
-        <Skeleton className="h-48 max-w-lg rounded-lg" />
-      ) : (
+      {isLoading ? <Skeleton className="h-48 max-w-lg rounded-lg" /> : (
         <>
           {activeTab === "Profile" && (
             <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
@@ -117,13 +129,32 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "Security" && (
-            <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
-              <h3 className="font-semibold">Change Password</h3>
-              <div><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" /></div>
-              <div><Label>Confirm Password</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" /></div>
-              <Button onClick={handleChangePassword} disabled={saving || !newPassword}>
-                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Update Password
-              </Button>
+            <div className="max-w-lg space-y-6">
+              <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /><h3 className="font-semibold">Change Password</h3></div>
+                <div><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" /></div>
+                <div><Label>Confirm Password</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" /></div>
+                <Button onClick={handleChangePassword} disabled={saving || !newPassword}>
+                  {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Update Password
+                </Button>
+              </div>
+
+              <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /><h3 className="font-semibold">App PIN Lock</h3></div>
+                <p className="text-sm text-muted-foreground">
+                  {settings?.pin_hash ? "Your app is protected with a PIN. You can change or remove it below." : "Set a 6-digit PIN to lock your app after inactivity."}
+                </p>
+                <div><Label>New PIN (6 digits)</Label><Input type="password" maxLength={6} value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="••••••" /></div>
+                <div><Label>Confirm PIN</Label><Input type="password" maxLength={6} value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ""))} placeholder="••••••" /></div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSetPin} disabled={saving || newPin.length !== 6}>
+                    {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} {settings?.pin_hash ? "Change PIN" : "Set PIN"}
+                  </Button>
+                  {settings?.pin_hash && (
+                    <Button variant="outline" onClick={handleRemovePin} disabled={saving}>Remove PIN</Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

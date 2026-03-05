@@ -54,13 +54,21 @@ export default function MembersPage() {
 
       {isLoading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 rounded-lg" />)}
+          {[1, 2, 3].map(i => (
+            <div key={i} className="rounded-lg border bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between mb-3">
+                <div className="space-y-2"><Skeleton className="h-5 w-32" /><Skeleton className="h-4 w-16" /></div>
+              </div>
+              <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-28" /></div>
+            </div>
+          ))}
         </div>
       ) : !members?.length ? (
         <EmptyState
           icon={Users}
-          title="No family members yet"
-          description="Add your first member to get started."
+          illustration="people"
+          title="Your family tree starts here"
+          description="Add your first family member to begin organizing your family's documents."
           ctaLabel="Add First Member"
           onCta={() => setFormOpen(true)}
         />
@@ -69,15 +77,20 @@ export default function MembersPage() {
           {members.map(m => (
             <div key={m.id} className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate(`/members/${m.id}`)}>
               <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-lg">{m.name}</h3>
-                  {m.relation && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{m.relation}</span>}
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                    {m.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{m.name}</h3>
+                    {m.relation && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{m.relation}</span>}
+                  </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setEditMember(m); }}>
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={e => { e.stopPropagation(); setDeleteTarget(m); }}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteTarget(m); }}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

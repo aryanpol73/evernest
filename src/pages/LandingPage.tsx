@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Shield, TreePine, FileText, Bell, Siren, Users, ChevronRight, Star, Check } from "lucide-react";
+import { Shield, TreePine, FileText, Bell, Siren, Users, ChevronRight, Star, Check, Lock, Server, EyeOff, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const fadeUp = {
@@ -23,6 +23,13 @@ const features = [
   { icon: Shield, title: "Secure & Private", desc: "Bank-level encryption keeps your family data safe." },
 ];
 
+const trustCards = [
+  { icon: Lock, title: "Bank-Grade Encryption", text: "All documents encrypted with AES-256. Your files are unreadable to anyone but you." },
+  { icon: Server, title: "Powered by AWS", text: "Documents stored on Amazon Web Services infrastructure, the same technology trusted by banks and governments." },
+  { icon: EyeOff, title: "We Cannot Read Your Files", text: "EverNest staff have zero access to your uploaded documents. Your family's privacy is absolute." },
+  { icon: Download, title: "Your Data, Always", text: "Export and download all your data anytime. If you leave, everything comes with you. No lock-in, ever." },
+];
+
 const testimonials = [
   { name: "Priya Sharma", role: "Mother of 3", text: "EverNest saved us when we needed insurance documents during a hospital visit. Everything was right there." },
   { name: "Rajesh Patel", role: "Family Manager", text: "I used to keep everything in a drawer. Now my whole family's important info is organized and accessible." },
@@ -40,12 +47,8 @@ export default function LandingPage() {
             <span className="text-xl font-bold">EverNest</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="ghost" size="sm">Sign In</Button>
-            </Link>
-            <Link to="/auth?mode=signup">
-              <Button size="sm">Get Started Free</Button>
-            </Link>
+            <Link to="/auth"><Button variant="ghost" size="sm">Sign In</Button></Link>
+            <Link to="/auth?mode=signup"><Button size="sm">Get Started Free</Button></Link>
           </div>
         </div>
       </nav>
@@ -61,9 +64,7 @@ export default function LandingPage() {
           </motion.p>
           <motion.div variants={fadeUp} custom={2} className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/auth?mode=signup">
-              <Button size="lg" className="text-base px-8 gap-2">
-                Get Started Free <ChevronRight className="h-4 w-4" />
-              </Button>
+              <Button size="lg" className="text-base px-8 gap-2">Get Started Free <ChevronRight className="h-4 w-4" /></Button>
             </Link>
             <Button size="lg" variant="outline" className="text-base px-8" onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>
               See How It Works
@@ -71,6 +72,13 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </section>
+
+      {/* Trust Bar */}
+      <div className="text-center py-4">
+        <p className="text-sm text-muted-foreground">
+          🔒 AES-256 Encrypted  |  ☁️ Stored on AWS  |  🇮🇳 Made in India  |  ✅ GDPR Compliant
+        </p>
+      </div>
 
       {/* Problems */}
       <section className="bg-muted/50 py-20">
@@ -80,7 +88,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6">
             {problems.map((p, i) => (
               <motion.div key={i} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }}
-                className="rounded-lg border bg-card p-6 text-center">
+                className="rounded-lg border bg-card p-6 text-center shadow-sm">
                 <div className="inline-flex rounded-full bg-destructive/10 p-3 mb-4">
                   <p.icon className="h-6 w-6 text-destructive" />
                 </div>
@@ -100,7 +108,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6">
             {features.map((f, i) => (
               <motion.div key={i} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }}
-                className="rounded-lg border bg-card p-6 hover:shadow-md transition-shadow group">
+                className="rounded-lg border bg-card p-6 hover:shadow-md transition-shadow group shadow-sm">
                 <div className="inline-flex rounded-lg bg-primary/10 p-2.5 mb-4 group-hover:bg-primary/20 transition-colors">
                   <f.icon className="h-5 w-5 text-primary" />
                 </div>
@@ -112,22 +120,37 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Trust Section */}
+      <section className="py-20 bg-muted/30">
+        <div className="container">
+          <h2 className="text-3xl font-bold text-center mb-4">Your Family's Security is Our Priority</h2>
+          <p className="text-muted-foreground text-center mb-12 max-w-lg mx-auto">We take your privacy seriously. Here's how we protect your data.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {trustCards.map((card, i) => (
+              <motion.div key={i} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }}
+                className="rounded-lg border bg-card p-6 shadow-sm border-l-4 border-l-primary">
+                <div className="inline-flex rounded-lg bg-primary/10 p-2.5 mb-4">
+                  <card.icon className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="font-semibold mb-2">{card.title}</h3>
+                <p className="text-sm text-muted-foreground">{card.text}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
-      <section className="bg-muted/50 py-20">
+      <section className="py-20">
         <div className="container">
           <h2 className="text-3xl font-bold text-center mb-12">Trusted by Families</h2>
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
               <motion.div key={i} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }}
-                className="rounded-lg border bg-card p-6">
-                <div className="flex gap-1 mb-3">
-                  {[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 fill-accent text-accent" />)}
-                </div>
+                className="rounded-lg border bg-card p-6 shadow-sm">
+                <div className="flex gap-1 mb-3">{[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 fill-accent text-accent" />)}</div>
                 <p className="text-sm mb-4 italic">"{t.text}"</p>
-                <div>
-                  <p className="font-semibold text-sm">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.role}</p>
-                </div>
+                <div><p className="font-semibold text-sm">{t.name}</p><p className="text-xs text-muted-foreground">{t.role}</p></div>
               </motion.div>
             ))}
           </div>
@@ -135,13 +158,12 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-20">
+      <section className="py-20 bg-muted/50">
         <div className="container">
           <h2 className="text-3xl font-bold text-center mb-4">Simple, Transparent Pricing</h2>
           <p className="text-muted-foreground text-center mb-12">Start free, upgrade when you need more.</p>
           <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            {/* Free */}
-            <div className="rounded-lg border bg-card p-8">
+            <div className="rounded-lg border bg-card p-8 shadow-sm">
               <h3 className="text-xl font-bold mb-1">Free</h3>
               <p className="text-muted-foreground text-sm mb-4">For small families getting started</p>
               <p className="text-3xl font-bold mb-6">₹0 <span className="text-sm font-normal text-muted-foreground">/ month</span></p>
@@ -152,8 +174,7 @@ export default function LandingPage() {
               </ul>
               <Link to="/auth?mode=signup"><Button variant="outline" className="w-full">Get Started</Button></Link>
             </div>
-            {/* Pro */}
-            <div className="rounded-lg border-2 border-primary bg-card p-8 relative">
+            <div className="rounded-lg border-2 border-primary bg-card p-8 relative shadow-sm">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">Most Popular</div>
               <h3 className="text-xl font-bold mb-1">Pro</h3>
               <p className="text-muted-foreground text-sm mb-4">For families who want it all</p>

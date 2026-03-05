@@ -188,6 +188,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          onboarding_completed: boolean
+          pin_attempts: number
+          pin_hash: string | null
+          pin_locked_until: string | null
+          pin_salt: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          onboarding_completed?: boolean
+          pin_attempts?: number
+          pin_hash?: string | null
+          pin_locked_until?: string | null
+          pin_salt?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          onboarding_completed?: boolean
+          pin_attempts?: number
+          pin_hash?: string | null
+          pin_locked_until?: string | null
+          pin_salt?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
