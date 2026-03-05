@@ -14,7 +14,180 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      documents: {
+        Row: {
+          category: string
+          created_at: string
+          dismissed_reminder: boolean
+          expiry_date: string | null
+          family_id: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          member_id: string | null
+          name: string
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          dismissed_reminder?: boolean
+          expiry_date?: string | null
+          family_id: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          member_id?: string | null
+          name: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          dismissed_reminder?: boolean
+          expiry_date?: string | null
+          family_id?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          member_id?: string | null
+          name?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      families: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      family_members: {
+        Row: {
+          blood_group: string | null
+          created_at: string
+          date_of_birth: string | null
+          family_id: string
+          id: string
+          name: string
+          notes: string | null
+          parent_member_id: string | null
+          phone: string | null
+          relation: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          blood_group?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          family_id: string
+          id?: string
+          name: string
+          notes?: string | null
+          parent_member_id?: string | null
+          phone?: string | null
+          relation?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          blood_group?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          family_id?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          parent_member_id?: string | null
+          phone?: string | null
+          relation?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_members_parent_member_id_fkey"
+            columns: ["parent_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
