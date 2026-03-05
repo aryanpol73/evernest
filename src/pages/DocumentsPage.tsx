@@ -37,10 +37,7 @@ export default function DocumentsPage() {
     return true;
   }) || [];
 
-  const getMemberName = (memberId: string | null) => {
-    if (!memberId) return null;
-    return members?.find(m => m.id === memberId)?.name || null;
-  };
+  const getMemberName = (memberId: string | null) => memberId ? members?.find(m => m.id === memberId)?.name || null : null;
 
   const handleUpload = (data: any) => {
     if (!family || !user) return;
@@ -49,12 +46,8 @@ export default function DocumentsPage() {
       metadata: {
         family_id: family.id,
         member_id: data.memberId === "none" ? null : data.memberId,
-        user_id: user.id,
-        name: data.name,
-        category: data.category,
-        expiry_date: data.expiryDate,
-        tags: data.tags,
-        dismissed_reminder: false,
+        user_id: user.id, name: data.name, category: data.category,
+        expiry_date: data.expiryDate, tags: data.tags, dismissed_reminder: false,
       },
     }, { onSuccess: () => setUploadOpen(false) });
   };
@@ -82,7 +75,6 @@ export default function DocumentsPage() {
         actions={<Button className="gap-2" onClick={() => setUploadOpen(true)}><Plus className="h-4 w-4" /> Upload Document</Button>}
       />
 
-      {/* Search + Category Tabs */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -91,26 +83,23 @@ export default function DocumentsPage() {
       </div>
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
-              activeCategory === cat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {cat}
-          </button>
+          <button key={cat} onClick={() => setActiveCategory(cat)}
+            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${activeCategory === cat ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+          >{cat}</button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
+        <div className="space-y-3">{[1, 2, 3].map(i => (
+          <div key={i} className="rounded-lg border bg-card p-4"><Skeleton className="h-5 w-48 mb-2" /><Skeleton className="h-4 w-32" /></div>
+        ))}</div>
       ) : !filtered.length ? (
         <EmptyState
           icon={FileText}
-          title={search || activeCategory !== "All" ? "No matching documents" : "No documents uploaded"}
-          description={search || activeCategory !== "All" ? "Try a different search or category." : "Upload your first document to start building your secure vault."}
-          ctaLabel={!search && activeCategory === "All" ? "Upload Document" : undefined}
+          illustration={!search && activeCategory === "All" ? "folder" : undefined}
+          title={search || activeCategory !== "All" ? "No matching documents" : "Your document vault is empty"}
+          description={search || activeCategory !== "All" ? "Try a different search or category." : "Start by uploading an important document for any family member."}
+          ctaLabel={!search && activeCategory === "All" ? "Upload First Document" : undefined}
           onCta={!search && activeCategory === "All" ? () => setUploadOpen(true) : undefined}
         />
       ) : (
@@ -118,20 +107,18 @@ export default function DocumentsPage() {
           {filtered.map(doc => (
             <div key={doc.id} className="flex items-center justify-between rounded-lg border bg-card p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-center gap-3 min-w-0">
-                <FileText className="h-5 w-5 text-primary shrink-0" />
+                <div className="rounded-lg bg-primary/10 p-2"><FileText className="h-4 w-4 text-primary" /></div>
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{doc.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {doc.category}
-                    {getMemberName(doc.member_id) && ` · ${getMemberName(doc.member_id)}`}
-                    {doc.expiry_date && ` · Expires ${doc.expiry_date}`}
+                    {doc.category}{getMemberName(doc.member_id) && ` · ${getMemberName(doc.member_id)}`}{doc.expiry_date && ` · Expires ${doc.expiry_date}`}
                   </p>
                 </div>
               </div>
               <div className="flex gap-1 shrink-0">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreview(doc.file_path, doc.name)}><Eye className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc.file_path, doc.name)}><Download className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
           ))}
@@ -141,15 +128,10 @@ export default function DocumentsPage() {
       <DocumentUploadModal open={uploadOpen} onOpenChange={setUploadOpen} onSubmit={handleUpload} members={members || []} loading={addDocument.isPending} />
       <DeleteConfirmDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)} onConfirm={() => { if (deleteTarget) deleteDocument.mutate(deleteTarget, { onSuccess: () => setDeleteTarget(null) }); }} title="Delete Document?" loading={deleteDocument.isPending} />
 
-      {/* Preview Dialog */}
       <Dialog open={!!previewUrl} onOpenChange={v => { if (!v) { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
         <DialogContent className="max-w-3xl max-h-[80vh]">
           <DialogHeader><DialogTitle>{previewName}</DialogTitle></DialogHeader>
-          {previewUrl && (
-            <div className="overflow-auto max-h-[65vh]">
-              {previewUrl && <iframe src={previewUrl} className="w-full h-[60vh] rounded border" />}
-            </div>
-          )}
+          {previewUrl && <div className="overflow-auto max-h-[65vh]"><iframe src={previewUrl} className="w-full h-[60vh] rounded border" /></div>}
         </DialogContent>
       </Dialog>
     </div>

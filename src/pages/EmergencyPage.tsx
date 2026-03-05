@@ -16,6 +16,8 @@ export default function EmergencyPage() {
 
   const criticalDocs = docs?.filter(d => d.category === "Medical" || d.category === "Insurance") || [];
   const contacts = members?.filter(m => m.phone) || [];
+  const missingBlood = members?.filter(m => !m.blood_group) || [];
+  const missingPhone = members?.filter(m => !m.phone) || [];
 
   const handleDownload = async (filePath: string, name: string) => {
     const { data, error } = await supabase.storage.from("family-documents").download(filePath);
@@ -35,7 +37,9 @@ export default function EmergencyPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-lg" />)}</div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{[1, 2, 3].map(i => (
+          <div key={i} className="rounded-lg border bg-card p-6 shadow-sm"><Skeleton className="h-5 w-32 mb-4" /><Skeleton className="h-24" /></div>
+        ))}</div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Blood Groups */}
@@ -44,6 +48,12 @@ export default function EmergencyPage() {
               <Droplets className="h-5 w-5 text-destructive" />
               <h2 className="font-semibold text-lg">Blood Groups</h2>
             </div>
+            {missingBlood.length > 0 && (
+              <div className="bg-accent/10 border border-accent/20 rounded-md p-3 mb-3 flex items-center justify-between">
+                <p className="text-xs font-medium">Blood groups missing for {missingBlood.length} member{missingBlood.length > 1 ? "s" : ""}</p>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => navigate("/members")}>Fill Now</Button>
+              </div>
+            )}
             {!members?.length ? (
               <div className="text-center py-4">
                 <p className="text-sm text-muted-foreground mb-2">No members added yet.</p>
@@ -54,9 +64,7 @@ export default function EmergencyPage() {
                 {members.map(m => (
                   <div key={m.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
                     <span className="text-sm font-medium">{m.name}</span>
-                    <span className={`text-sm font-semibold ${m.blood_group ? "" : "text-destructive"}`}>
-                      {m.blood_group || "Not recorded"}
-                    </span>
+                    <span className={`text-sm font-semibold ${m.blood_group ? "" : "text-destructive"}`}>{m.blood_group || "Not recorded"}</span>
                   </div>
                 ))}
               </div>
@@ -69,6 +77,12 @@ export default function EmergencyPage() {
               <Phone className="h-5 w-5 text-primary" />
               <h2 className="font-semibold text-lg">Emergency Contacts</h2>
             </div>
+            {missingPhone.length > 0 && members && members.length > 0 && (
+              <div className="bg-accent/10 border border-accent/20 rounded-md p-3 mb-3 flex items-center justify-between">
+                <p className="text-xs font-medium">Phone missing for {missingPhone.length} member{missingPhone.length > 1 ? "s" : ""}</p>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => navigate("/members")}>Fill Now</Button>
+              </div>
+            )}
             {!contacts.length ? (
               <div className="text-center py-4">
                 <p className="text-sm text-muted-foreground mb-2">No phone numbers saved.</p>
@@ -97,7 +111,9 @@ export default function EmergencyPage() {
             </div>
             {!criticalDocs.length ? (
               <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground mb-2">No Medical or Insurance documents.</p>
+                <div className="bg-accent/10 border border-accent/20 rounded-md p-3 mb-3">
+                  <p className="text-xs font-medium">No Medical or Insurance documents uploaded yet.</p>
+                </div>
                 <Button variant="outline" size="sm" onClick={() => navigate("/documents")}>Upload Documents</Button>
               </div>
             ) : (
