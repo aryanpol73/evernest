@@ -44,7 +44,7 @@ export type Database = {
           name: string
           tags: string[] | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           category?: string
@@ -119,6 +119,22 @@ export type Database = {
         }
         Relationships: []
       }
+      family_invites: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          family_id: string
+          id: string
+          invited_by: string | null
+          revoked_at: string | null
+          role: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       family_members: {
         Row: {
           blood_group: string | null
@@ -132,7 +148,7 @@ export type Database = {
           phone: string | null
           relation: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           blood_group?: string | null
@@ -175,6 +191,25 @@ export type Database = {
             columns: ["parent_member_id"]
             isOneToOne: false
             referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_memberships: {
+        Row: {
+          created_at: string
+          family_id: string
+          role: string
+          user_id: string
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "family_memberships_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
@@ -229,6 +264,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_family_invite: { Args: { _token: string }; Returns: string }
+      can_edit_family: { Args: { _family_id: string }; Returns: boolean }
+      can_read_family: { Args: { _family_id: string }; Returns: boolean }
+      create_family_invite: { Args: { _email: string; _family_id: string; _role: string }; Returns: string }
+      family_role: { Args: { _family_id: string }; Returns: string | null }
+      generate_mfa_recovery_codes: { Args: never; Returns: string[] }
+      list_family_access: {
+        Args: { _family_id: string }
+        Returns: { email: string; full_name: string | null; joined_at: string; role: string; user_id: string }[]
+      }
+      mfa_recovery_codes_remaining: { Args: never; Returns: number }
+      preview_family_invite: { Args: { _token: string }; Returns: Json }
+      redeem_mfa_recovery_code: { Args: { _code: string }; Returns: Json }
+      remove_family_access: { Args: { _family_id: string; _user_id: string }; Returns: undefined }
+      revoke_family_invite: { Args: { _invite_id: string }; Returns: undefined }
+      set_family_role: { Args: { _family_id: string; _role: string; _user_id: string }; Returns: undefined }
+      storage_path_role: { Args: { _path: string }; Returns: string | null }
+      delete_my_account: { Args: never; Returns: undefined }
+      list_my_storage_paths: { Args: never; Returns: string[] }
       owns_family: { Args: { _family_id: string }; Returns: boolean }
       owns_storage_path: { Args: { _path: string }; Returns: boolean }
       pin_status: { Args: never; Returns: Json }

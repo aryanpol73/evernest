@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -49,8 +47,8 @@
     --sidebar-border: 210 17% 92%;
     --sidebar-ring: 153 43% 30%;
 
-    --font-heading: 'Inter', sans-serif;
-    --font-body: 'Inter', sans-serif;
+    --font-heading: 'Inter Variable', sans-serif;
+    --font-body: 'Inter Variable', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
 

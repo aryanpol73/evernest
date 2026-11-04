@@ -31,8 +31,8 @@ The master context indexes nine documents under `docs/`. None were in the reposi
 | Document upload and download | Partial | Private bucket; no client-side encryption |
 | Reminders, emergency page, family tree | Partial | Client-side views over existing tables |
 | PWA | Present | Precaches build assets only; no runtime caching of API data |
-| Audit log | Missing | |
-| Data export and account deletion | Missing | Export is advertised on the landing page |
+| Audit log | Built, not released | Settings → Activity. Reads are app-reported (ADR-007) |
+| Data export and account deletion | Built, not released | Settings → Your Data |
 | Billing | Missing | ₹299 plan is advertised on the landing page |
 | AI, OCR, search, MCP, worker | Missing | No backend beyond Supabase |
 
@@ -44,14 +44,14 @@ The master context indexes nine documents under `docs/`. None were in the reposi
 | F-1 | High | PIN hash, salt, attempt counter, and lockout were client-readable and client-writable. Offline brute force of a 6-digit PIN and lockout reset were both possible with a stolen session | Fixed in repo by SEC-2 |
 | F-2 | High | Previews rendered uploaded content in an unsandboxed same-origin iframe, so an HTML or SVG file could run script and read the session token | Fixed in repo by SEC-3 |
 | F-3 | High | `documents` RLS checked `user_id` only, so rows could reference another family or another family's member | Fixed in repo by SEC-1 |
-| F-4 | High | Landing page claims are not supported by the code: "AES-256… unreadable to anyone but you", "GDPR Compliant", "Stored on AWS", "Export… anytime" | **Open, needs owner decision** |
+| F-4 | High | Landing page claims were not supported: "unreadable to anyone but you", "zero access", "GDPR Compliant", testimonials with no evidence, "automated expiry alerts", and a Pro trial that did not exist | Fixed in repo by SEC-8 |
 | F-5 | High | No MFA; 6-character passwords; "Forgot password" flow missing | Fixed in repo by SEC-5. Lost-device recovery is open (SEC-11) |
 | F-6 | Medium | Allowed file types were enforced only by the browser file picker | Fixed in repo by SEC-1 and SEC-3 |
 | F-7 | Medium | "Forgot PIN" linked to a `/reset-password` route that does not exist | Fixed in repo by SEC-2 |
 | F-8 | Medium | Session token is stored in `localStorage`, so the PIN lock is a device convenience and not a data boundary | Open, documented in ADR-003 |
 | F-9 | Medium | No audit log of document access | Fixed in repo by SEC-6, for changes and PIN events. Reads are app-reported, not verified (SEC-12) |
 | F-10 | Medium | No Content-Security-Policy | Fixed in repo by SEC-7. `frame-ancestors` and other host headers are open (SEC-13) |
-| F-11 | Medium | 19 high-severity dependency advisories; `package-lock.json` drift (drift fixed, advisories remain) | Open (SEC-4) |
+| F-11 | Medium | 19 high-severity dependency advisories; `package-lock.json` drift | Fixed in repo by SEC-4 |
 | F-12 | Low | `.env` is committed to a public repo. It holds only the public `anon` key, so this is not a leak, but RLS is the only barrier to data | Accepted; kept because Lovable may rely on it |
 
 "Fixed in repo" means the change exists in the working tree. It protects users only after the migration is applied and the client is deployed.

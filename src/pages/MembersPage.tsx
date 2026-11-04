@@ -5,14 +5,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MemberFormModal } from "@/components/MemberFormModal";
+import { MemberFormModal, type MemberFormData } from "@/components/MemberFormModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { useFamily, useFamilyMembers, useAddMember, useUpdateMember, useDeleteMember, FamilyMember } from "@/hooks/useFamily";
+import { useCanEdit, useFamily, useFamilyMembers, useAddMember, useUpdateMember, useDeleteMember, FamilyMember } from "@/hooks/useFamily";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function MembersPage() {
   const { user } = useAuth();
   const { data: family } = useFamily();
+  const canEdit = useCanEdit();
   const { data: members, isLoading } = useFamilyMembers();
   const addMember = useAddMember();
   const updateMember = useUpdateMember();
@@ -23,14 +24,14 @@ export default function MembersPage() {
   const [editMember, setEditMember] = useState<FamilyMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FamilyMember | null>(null);
 
-  const handleAdd = (data: any) => {
+  const handleAdd = (data: MemberFormData) => {
     if (!family || !user) return;
     addMember.mutate({ ...data, family_id: family.id, user_id: user.id, parent_member_id: null }, {
       onSuccess: () => setFormOpen(false),
     });
   };
 
-  const handleEdit = (data: any) => {
+  const handleEdit = (data: MemberFormData) => {
     if (!editMember) return;
     updateMember.mutate({ id: editMember.id, ...data }, {
       onSuccess: () => setEditMember(null),
@@ -49,7 +50,7 @@ export default function MembersPage() {
       <PageHeader
         title="Family Members"
         subtitle="Manage profiles for everyone in your family."
-        actions={<Button className="gap-2" onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Add Member</Button>}
+        actions={canEdit ? <Button className="gap-2" onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Add Member</Button> : undefined}
       />
 
       {isLoading ? (
@@ -69,8 +70,8 @@ export default function MembersPage() {
           illustration="people"
           title="Your family tree starts here"
           description="Add your first family member to begin organizing your family's documents."
-          ctaLabel="Add First Member"
-          onCta={() => setFormOpen(true)}
+          ctaLabel={canEdit ? "Add First Member" : undefined}
+          onCta={canEdit ? () => setFormOpen(true) : undefined}
         />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -86,14 +87,16 @@ export default function MembersPage() {
                     {m.relation && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{m.relation}</span>}
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setEditMember(m); }}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteTarget(m); }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                {canEdit && (
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setEditMember(m); }}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={e => { e.stopPropagation(); setDeleteTarget(m); }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 {m.blood_group && <div className="flex items-center gap-2"><Droplets className="h-3.5 w-3.5" /> {m.blood_group}</div>}

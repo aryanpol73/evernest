@@ -54,7 +54,7 @@ Confirming a password in Settings uses a temporary client (`src/lib/reauth.ts`),
 
 **Accepted risks:**
 
-- **Lost devices:** Supabase has no built-in recovery codes. Someone who loses their authenticator needs an operator to remove the factor, and that process must verify identity carefully, because it bypasses MFA (SEC-11).
+- **Lost devices:** handled by recovery codes (ADR-012). Someone without their device or their codes still needs an operator to remove the factor, and that process must verify identity carefully, because it bypasses MFA.
 - **PIN functions at `aal1`:** someone with only the password can set or clear the PIN. They still cannot read family data.
 - **Current password check is client-side:** a stolen session can call Supabase Auth directly to change the password without it. Supabase's "secure password change" setting would close this, but needs a reauthentication email flow first.
 
@@ -82,3 +82,81 @@ A Vite plugin adds the policy as a meta tag to production builds, so it applies 
 New external services must be added to the policy deliberately, and the app will fail visibly until they are. Realtime is not allowed, so using Supabase Realtime means adding the project's `wss://` origin to `connect-src`.
 
 A meta tag cannot set `frame-ancestors`, so clickjacking protection needs a host header (SEC-13).
+
+## ADR-009: Account deletion needs fresh proof and leaves nothing behind
+
+**Status:** Accepted
+
+`delete_my_account` requires a password sign-in under five minutes old, plus MFA if enrolled, so a stolen session alone cannot destroy an account. The client runs the whole flow on a temporary session (`src/lib/accountDeletion.ts`), and every identity check finishes before the first file is removed.
+
+Postgres cannot remove files from Storage, so the function refuses while any of the user's files remain. Deleting them in SQL would leave the objects behind while reporting success.
+
+Exports stop on the first failure, because an incomplete archive could pass for a complete backup. They are built in browser memory, so very large vaults may need a server-side export later. Each exported file is logged as a download.
+
+Audit events older than 12 months are purged when a family's next event is written, which avoids needing a scheduler. A family with no new events keeps old ones until then. Twelve months is a default, so confirm it with legal advice.
+
+## ADR-010: Assets are never inlined
+
+**Status:** Accepted
+
+`build.assetsInlineLimit` is 0 because inlined assets become `data:` URLs, which `font-src 'self'` blocks. Tests did not catch this: only a browser check of the production build did. After changing fonts, assets, or the policy, load a production build and check for violations.
+
+## ADR-011: Family roles and invites
+
+**Status:** Accepted
+
+Access follows `family_memberships`, with three roles:
+
+| | Owner | Editor | Viewer |
+|---|---|---|---|
+| See and download everything | Yes | Yes | Yes |
+| Add, change, and delete members and documents | Yes | Yes | No |
+| Rename the family, invite, change roles, remove people | Yes | No | No |
+| Read the audit log | Yes | No | No |
+
+A family has exactly one owner, and ownership cannot be transferred yet. Each user owns one family and can join others, and `ActiveFamilyContext` remembers which one is shown. That choice only affects what is displayed: RLS decides access.
+
+Clients can read memberships but never write them, so roles change only through owner-checked functions. Those functions bypass RLS, so each one checks the role and `mfa_satisfied()` itself. Any new `SECURITY DEFINER` function must do the same.
+
+Invite links are bearer tokens, so only a SHA-256 hash is stored, and the token sits in the URL fragment. A link needs the invited address, confirmed, and it expires after 7 days. A new invite to the same address replaces the old link. All failures return the same error. The owner sends the link, because the app has no email provider yet (FEAT-2).
+
+Records belong to the family. `user_id` on documents and members is now nullable with `ON DELETE SET NULL`, so an editor deleting their account leaves what they added. A trigger stops editors changing a record's creator or moving it to another family.
+
+Deleting an account removes the family the user owns, for everyone in it. Export covers only that family.
+
+**Accepted risks:**
+
+- **Sharing weakens MFA:** an owner's MFA doesn't apply to the people they invite. A viewer without MFA can read everything, so a stolen viewer password exposes the family. A later option is letting owners require MFA for members.
+- **Downloads can't be recalled:** removing someone ends their access, but they keep anything already downloaded.
+- **No ownership transfer:** if an owner deletes their account or loses access, the family goes with them. Families planning for a death or emergency will need a successor feature.
+
+## ADR-012: MFA recovery codes
+
+**Status:** Accepted
+
+Supabase has no recovery codes, so the app has its own: ten single-use codes of 80 random bits, shown once and stored as SHA-256 hashes in `private.mfa_recovery_codes`. A plain hash is enough because the codes are random, unlike passwords. Generating needs a real `aal2` session.
+
+A code replaces the second factor and never the first, so redeeming needs a password sign-in under five minutes old. Redeeming deletes the factor and all other codes and signs out other sessions, so the user has to set MFA up again. This is simpler than keeping MFA on, and leaves no way to reuse a code.
+
+Five wrong codes lock redemption for 30 minutes. Codes older than the newest verified factor are ignored, so codes from an earlier setup cannot defeat a new authenticator. Generation, failures, and use are in the audit log.
+
+**Accepted risk:** a stolen password plus a stolen code gives full access, which is why the app tells people to keep codes away from their password.
+
+## ADR-013: Public claims must be true today
+
+**Status:** Accepted
+
+Marketing copy states only what the product does now, because EverNest sells trust. `src/pages/LandingPage.test.tsx` fails if the removed claims come back.
+
+Supabase's security page says customer data is encrypted at rest with AES-256 and in transit with TLS, so the page says that, and credits the infrastructure provider. That protects stored disks and traffic, and it does not keep the operator out, so the page states that EverNest is not end-to-end encrypted. Revisit this after ADR-002.
+
+| Removed | Can return when |
+|---|---|
+| "Unreadable to anyone but you", "zero access" | End-to-end encryption exists (ADR-002) |
+| "GDPR Compliant" | A qualified person has assessed it |
+| "Stored on AWS" | The project's hosting is confirmed. It is likely true, because Supabase runs projects in AWS regions |
+| Testimonials | Real customers have agreed to be quoted |
+| "Automated expiry alerts" | Reminders are actually sent, which needs an email provider |
+| "Most Popular", "Start Pro Trial" | Billing exists |
+
+The Free plan's limits (3 members, 25 documents) are listed but not enforced, and every feature is available to everyone. Enforce the plans as part of billing.

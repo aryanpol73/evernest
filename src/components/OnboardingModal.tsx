@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFamily, useUpdateFamily, useAddMember, useAddDocument, useFamilyMembers } from "@/hooks/useFamily";
+import { useOwnFamily, useUpdateFamily, useAddMember, useAddDocument, useFamilyMembers } from "@/hooks/useFamily";
 import { useUpdateSettings } from "@/hooks/useUserSettings";
 import { TreePine, Loader2, Check, Upload, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,8 @@ interface Props {
 
 export function OnboardingModal({ open, onComplete }: Props) {
   const { user } = useAuth();
-  const { data: family } = useFamily();
+  // Someone who joined by invite must set up their own family, not the one they joined.
+  const { data: family } = useOwnFamily();
   const updateFamily = useUpdateFamily();
   const addMember = useAddMember();
   const updateSettings = useUpdateSettings();
@@ -51,7 +52,7 @@ export function OnboardingModal({ open, onComplete }: Props) {
     try {
       await updateFamily.mutateAsync({ id: family.id, name: `The ${familyName.trim()} Family` });
       setStep(2);
-    } catch { } finally { setLoading(false); }
+    } catch { /* The mutation's onError has already told the user. */ } finally { setLoading(false); }
   };
 
   const handleAddMember = async () => {
@@ -65,7 +66,7 @@ export function OnboardingModal({ open, onComplete }: Props) {
       });
       setAddedMembers(prev => [...prev, memberName]);
       setMemberName(""); setMemberRelation(""); setMemberDob(""); setMemberBlood("");
-    } catch { } finally { setLoading(false); }
+    } catch { /* The mutation's onError has already told the user. */ } finally { setLoading(false); }
   };
 
   const handleStep3Upload = async () => {
@@ -82,7 +83,7 @@ export function OnboardingModal({ open, onComplete }: Props) {
       });
       setUploaded(true);
       toast({ title: "Document uploaded! 🎉" });
-    } catch { } finally { setLoading(false); }
+    } catch { /* The mutation's onError has already told the user. */ } finally { setLoading(false); }
   };
 
   const finishOnboarding = async () => {

@@ -6,15 +6,16 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFamilyMembers, useDocuments, useFamily, useAddMember, useAddDocument } from "@/hooks/useFamily";
-import { MemberFormModal } from "@/components/MemberFormModal";
-import { DocumentUploadModal } from "@/components/DocumentUploadModal";
+import { useCanEdit, useFamilyMembers, useDocuments, useFamily, useAddMember, useAddDocument } from "@/hooks/useFamily";
+import { MemberFormModal, type MemberFormData } from "@/components/MemberFormModal";
+import { DocumentUploadModal, type DocumentFormData } from "@/components/DocumentUploadModal";
 import { HealthScoreWidget } from "@/components/HealthScoreWidget";
 import { differenceInDays } from "date-fns";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { data: family } = useFamily();
+  const canEdit = useCanEdit();
   const { data: members, isLoading: membersLoading } = useFamilyMembers();
   const { data: docs, isLoading: docsLoading } = useDocuments();
   const addMember = useAddMember();
@@ -35,12 +36,12 @@ export default function DashboardPage() {
 
   const recentDocs = docs?.slice(0, 5) || [];
 
-  const handleAddMember = (data: any) => {
+  const handleAddMember = (data: MemberFormData) => {
     if (!family || !user) return;
     addMember.mutate({ ...data, family_id: family.id, user_id: user.id, parent_member_id: null }, { onSuccess: () => setMemberOpen(false) });
   };
 
-  const handleUpload = (data: any) => {
+  const handleUpload = (data: DocumentFormData) => {
     if (!family || !user) return;
     addDocument.mutate({
       file: data.file,
@@ -76,14 +77,18 @@ export default function DashboardPage() {
           <div className="rounded-lg border bg-card p-6 shadow-sm">
             <h2 className="font-semibold text-lg mb-4">Quick Actions</h2>
             <div className="grid grid-cols-3 gap-3">
-              <Button variant="outline" className="flex flex-col h-auto py-4 gap-2 hover:shadow-md transition-shadow" onClick={() => setMemberOpen(true)}>
-                <UserPlus className="h-5 w-5 text-primary" />
-                <span className="text-xs">Add Member</span>
-              </Button>
-              <Button variant="outline" className="flex flex-col h-auto py-4 gap-2 hover:shadow-md transition-shadow" onClick={() => setDocOpen(true)}>
-                <Upload className="h-5 w-5 text-primary" />
-                <span className="text-xs">Upload Doc</span>
-              </Button>
+              {canEdit && (
+                <>
+                  <Button variant="outline" className="flex flex-col h-auto py-4 gap-2 hover:shadow-md transition-shadow" onClick={() => setMemberOpen(true)}>
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    <span className="text-xs">Add Member</span>
+                  </Button>
+                  <Button variant="outline" className="flex flex-col h-auto py-4 gap-2 hover:shadow-md transition-shadow" onClick={() => setDocOpen(true)}>
+                    <Upload className="h-5 w-5 text-primary" />
+                    <span className="text-xs">Upload Doc</span>
+                  </Button>
+                </>
+              )}
               <Button variant="outline" className="flex flex-col h-auto py-4 gap-2 hover:shadow-md transition-shadow" onClick={() => navigate("/reminders")}>
                 <Plus className="h-5 w-5 text-primary" />
                 <span className="text-xs">Reminders</span>

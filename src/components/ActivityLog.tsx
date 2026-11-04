@@ -15,6 +15,14 @@ const ACTION_LABELS: Record<string, string> = {
   pin_removed: "App PIN removed",
   pin_failed: "Wrong PIN entered",
   pin_locked: "PIN locked after too many attempts",
+  invite_created: "Invited",
+  invite_revoked: "Revoked invite",
+  access_granted: "Joined the family",
+  access_changed: "Access changed",
+  access_removed: "Left or was removed",
+  mfa_recovery_codes_created: "New recovery codes created",
+  mfa_recovery_used: "Recovery code used, two-step verification turned off",
+  mfa_recovery_failed: "Wrong recovery code entered",
 };
 
 export function ActivityLog() {

@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveFamily } from "@/contexts/ActiveFamilyContext";
 import { useToast } from "@/hooks/use-toast";
 import { buildStoragePath, documentTypeFor, validateDocumentFile } from "@/lib/documentFiles";
+
+export type FamilyRole = "owner" | "editor" | "viewer";
 
 export interface Family {
   id: string;
@@ -10,12 +13,13 @@ export interface Family {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  role: FamilyRole;
 }
 
 export interface FamilyMember {
   id: string;
   family_id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   relation: string | null;
   date_of_birth: string | null;
@@ -31,7 +35,7 @@ export interface Document {
   id: string;
   family_id: string;
   member_id: string | null;
-  user_id: string;
+  user_id: string | null;
   name: string;
   category: string;
   file_path: string;
@@ -44,22 +48,43 @@ export interface Document {
   updated_at: string;
 }
 
-export function useFamily() {
+export function useFamilies() {
   const { user } = useAuth();
-  return useQuery<Family | null>({
-    queryKey: ["family", user?.id],
+  return useQuery<Family[]>({
+    queryKey: ["families", user?.id],
     queryFn: async () => {
-      if (!user) return null;
+      if (!user) return [];
       const { data, error } = await supabase
-        .from("families")
-        .select("*")
-        .eq("owner_id", user.id)
-        .maybeSingle();
+        .from("family_memberships")
+        .select("role, families(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as Family | null;
+      return data.flatMap(m => (m.families ? [{ ...m.families, role: m.role as FamilyRole }] : []));
     },
     enabled: !!user,
   });
+}
+
+// The family being shown. A remembered family the user has left falls back to their own.
+export function useFamily() {
+  const families = useFamilies();
+  const { activeFamilyId } = useActiveFamily();
+  const list = families.data ?? [];
+  const family = list.find(f => f.id === activeFamilyId) ?? list.find(f => f.role === "owner") ?? list[0] ?? null;
+  return { ...families, data: family };
+}
+
+// The family a user owns, whichever one they are viewing.
+export function useOwnFamily() {
+  const families = useFamilies();
+  return { ...families, data: families.data?.find(f => f.role === "owner") ?? null };
+}
+
+// Decides what to show. RLS is what actually enforces the role.
+export function useCanEdit(): boolean {
+  const { data: family } = useFamily();
+  return family?.role === "owner" || family?.role === "editor";
 }
 
 export function useUpdateFamily() {
@@ -71,28 +96,27 @@ export function useUpdateFamily() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["family"] });
+      qc.invalidateQueries({ queryKey: ["families"] });
       toast({ title: "Family updated", description: "Workspace name saved." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
 
 export function useFamilyMembers() {
-  const { user } = useAuth();
+  const { data: family } = useFamily();
   return useQuery<FamilyMember[]>({
-    queryKey: ["family_members", user?.id],
+    queryKey: ["family_members", family?.id],
     queryFn: async () => {
-      if (!user) return [];
       const { data, error } = await supabase
         .from("family_members")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("family_id", family!.id)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data || []) as FamilyMember[];
     },
-    enabled: !!user,
+    enabled: !!family,
   });
 }
 
@@ -100,7 +124,7 @@ export function useAddMember() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (member: Omit<FamilyMember, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (member: Omit<FamilyMember, "id" | "created_at" | "updated_at" | "user_id"> & { user_id: string }) => {
       const { error } = await supabase.from("family_members").insert(member);
       if (error) throw error;
     },
@@ -108,7 +132,7 @@ export function useAddMember() {
       qc.invalidateQueries({ queryKey: ["family_members"] });
       toast({ title: "Member added", description: "Family member has been added successfully." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -116,7 +140,7 @@ export function useUpdateMember() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async ({ id, ...data }: Partial<FamilyMember> & { id: string }) => {
+    mutationFn: async ({ id, ...data }: Partial<Omit<FamilyMember, "user_id">> & { id: string }) => {
       const { error } = await supabase.from("family_members").update({ ...data, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
@@ -124,7 +148,7 @@ export function useUpdateMember() {
       qc.invalidateQueries({ queryKey: ["family_members"] });
       toast({ title: "Member updated", description: "Changes saved successfully." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -141,25 +165,24 @@ export function useDeleteMember() {
       qc.invalidateQueries({ queryKey: ["documents"] });
       toast({ title: "Member deleted", description: "Family member has been removed." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
 
 export function useDocuments() {
-  const { user } = useAuth();
+  const { data: family } = useFamily();
   return useQuery<Document[]>({
-    queryKey: ["documents", user?.id],
+    queryKey: ["documents", family?.id],
     queryFn: async () => {
-      if (!user) return [];
       const { data, error } = await supabase
         .from("documents")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("family_id", family!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as Document[];
     },
-    enabled: !!user,
+    enabled: !!family,
   });
 }
 
@@ -167,13 +190,13 @@ export function useAddDocument() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async ({ file, metadata }: { file: File; metadata: Omit<Document, "id" | "created_at" | "updated_at" | "file_path" | "file_size" | "file_type"> }) => {
+    mutationFn: async ({ file, metadata }: { file: File; metadata: Omit<Document, "id" | "created_at" | "updated_at" | "file_path" | "file_size" | "file_type" | "user_id"> & { user_id: string } }) => {
       const problem = validateDocumentFile(file);
       if (problem) throw new Error(problem);
       const fileType = documentTypeFor(file.name);
       const filePath = buildStoragePath(metadata.family_id, metadata.member_id, file.name);
       const bucket = supabase.storage.from("family-documents");
-      const { error: uploadError } = await bucket.upload(filePath, file, { contentType: fileType });
+      const { error: uploadError } = await bucket.upload(filePath, file, { contentType: fileType ?? undefined });
       if (uploadError) throw uploadError;
       const { error } = await supabase.from("documents").insert({
         ...metadata,
@@ -191,7 +214,7 @@ export function useAddDocument() {
       qc.invalidateQueries({ queryKey: ["documents"] });
       toast({ title: "Document uploaded", description: "Document has been saved to your vault." });
     },
-    onError: (e: any) => toast({ title: "Upload failed", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Upload failed", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -209,7 +232,7 @@ export function useDeleteDocument() {
       qc.invalidateQueries({ queryKey: ["documents"] });
       toast({ title: "Document deleted", description: "Document has been removed." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -225,6 +248,6 @@ export function useDismissReminder() {
       qc.invalidateQueries({ queryKey: ["documents"] });
       toast({ title: "Reminder dismissed" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }

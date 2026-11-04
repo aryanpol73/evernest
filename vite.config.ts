@@ -30,6 +30,10 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  build: {
+    // Inlined assets become data: URLs, which the Content-Security-Policy blocks for fonts.
+    assetsInlineLimit: 0,
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),

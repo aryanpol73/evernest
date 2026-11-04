@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinLockScreen } from "@/components/PinLockScreen";
+import { FamilySwitcher } from "@/components/FamilySwitcher";
 import { usePinStatus, useUserSettings } from "@/hooks/useUserSettings";
 import { useFamily } from "@/hooks/useFamily";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -125,6 +126,8 @@ export default function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {family?.role === "viewer" && <span className="text-xs text-muted-foreground">View only</span>}
+              <FamilySwitcher />
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-4 w-4" />
               </Button>

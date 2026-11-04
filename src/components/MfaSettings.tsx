@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { confirmTotpEnrollment, removeTotpFactor, startTotpEnrollment, useTotpFactors, type TotpEnrollment } from "@/hooks/useMfa";
+import { RecoveryCodesPanel } from "@/components/RecoveryCodesPanel";
+import { confirmTotpEnrollment, generateRecoveryCodes, removeTotpFactor, startTotpEnrollment, useRecoveryCodesRemaining, useTotpFactors, type TotpEnrollment } from "@/hooks/useMfa";
 import { verifyCurrentPassword } from "@/lib/reauth";
 
 export function MfaSettings() {
@@ -20,8 +21,10 @@ export function MfaSettings() {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
   const factor = factors?.[0];
+  const { data: remainingCodes } = useRecoveryCodesRemaining(!!factor);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -46,6 +49,13 @@ export function MfaSettings() {
     setEnrollment(null);
     await qc.invalidateQueries({ queryKey: ["mfa_factors"] });
     toast({ title: "Two-step verification on", description: "You'll need a code from your app each time you sign in." });
+    setRecoveryCodes(await generateRecoveryCodes());
+    await qc.invalidateQueries({ queryKey: ["mfa_recovery_remaining"] });
+  });
+
+  const handleNewCodes = () => run(async () => {
+    setRecoveryCodes(await generateRecoveryCodes());
+    await qc.invalidateQueries({ queryKey: ["mfa_recovery_remaining"] });
   });
 
   const handleRemove = () => run(async () => {
@@ -62,12 +72,27 @@ export function MfaSettings() {
     <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
       <div className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-primary" /><h3 className="font-semibold">Two-Step Verification</h3></div>
 
+      {/* Outside the factor checks, because these can never be shown again. */}
+      {recoveryCodes && <RecoveryCodesPanel codes={recoveryCodes} onDone={() => setRecoveryCodes(null)} />}
+
       {isLoading && <Skeleton className="h-10" />}
       {isError && <p className="text-sm text-destructive">We couldn't load your two-step verification settings.</p>}
 
       {factors && factor && (
         <>
           <p className="text-sm text-muted-foreground">On. You enter a code from your authenticator app when you sign in.</p>
+
+          {!recoveryCodes && (
+            <div className="space-y-2">
+              {remainingCodes === 0 ? (
+                <p className="text-sm text-destructive">You have no recovery codes left. Without them, losing your device could lock you out.</p>
+              ) : (
+                remainingCodes !== undefined && <p className="text-sm text-muted-foreground">You have {remainingCodes} recovery codes left.</p>
+              )}
+              <Button variant="outline" size="sm" onClick={handleNewCodes} disabled={busy}>Create New Codes</Button>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="mfa-remove-password">Account password</Label>
             <Input id="mfa-remove-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
@@ -76,7 +101,7 @@ export function MfaSettings() {
         </>
       )}
 
-      {factors && !factor && !enrollment && (
+      {factors && !factor && !enrollment && !recoveryCodes && (
         <>
           <p className="text-sm text-muted-foreground">Add a code from an authenticator app, so a stolen password alone can't open your family's documents.</p>
           <Button onClick={handleStart} disabled={busy}>
@@ -97,7 +122,7 @@ export function MfaSettings() {
             <Label htmlFor="mfa-enroll-code">6-digit code</Label>
             <Input id="mfa-enroll-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} />
           </div>
-          <p className="text-sm text-muted-foreground">If you lose this device, you'll need to contact support to get back in. Save the key above somewhere safe.</p>
+          <p className="text-sm text-muted-foreground">Next, you'll get recovery codes to save in case you lose this device.</p>
           <div className="flex gap-2">
             <Button onClick={handleConfirm} disabled={busy || code.length !== 6}>
               {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Turn On

@@ -18,6 +18,8 @@ const SUPABASE_STUB = `
 
   CREATE TABLE auth.users (
     id uuid PRIMARY KEY,
+    email varchar(255),
+    email_confirmed_at timestamptz,
     raw_user_meta_data jsonb NOT NULL DEFAULT '{}'
   );
 
@@ -25,7 +27,8 @@ const SUPABASE_STUB = `
   CREATE TABLE auth.mfa_factors (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    status auth.factor_status NOT NULL
+    status auth.factor_status NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
   );
 
   CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
@@ -76,9 +79,11 @@ export async function applyMigrations(db: PGlite, files: string[]): Promise<void
   }
 }
 
-export async function createUser(db: PGlite, id: string): Promise<string> {
-  await db.query("INSERT INTO auth.users (id, raw_user_meta_data) VALUES ($1, $2)", [
+export async function createUser(db: PGlite, id: string, email = `${id}@example.com`, confirmed = true): Promise<string> {
+  await db.query("INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data) VALUES ($1, $2, $3, $4)", [
     id,
+    email,
+    confirmed ? new Date().toISOString() : null,
     JSON.stringify({ full_name: "Test User" }),
   ]);
   const { rows } = await db.query<{ id: string }>("SELECT id FROM public.families WHERE owner_id = $1", [id]);

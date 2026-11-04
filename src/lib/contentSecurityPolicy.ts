@@ -11,8 +11,8 @@ export function buildContentSecurityPolicy(supabaseUrl: string | undefined): str
     "default-src": ["'none'"],
     "script-src": ["'self'"],
     // Radix and the chart component inject <style> elements at runtime.
-    "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-    "font-src": ["https://fonts.gstatic.com"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "font-src": ["'self'"],
     // blob: is document previews, and data: is the MFA QR code.
     "img-src": ["'self'", "data:", "blob:"],
     "connect-src": ["'self'", new URL(supabaseUrl).origin],

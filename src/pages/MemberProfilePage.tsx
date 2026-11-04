@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DocumentUploadModal } from "@/components/DocumentUploadModal";
-import { useFamilyMembers, useUpdateMember, useDocuments, useFamily, useAddDocument, useDeleteDocument, FamilyMember, type Document as VaultDocument } from "@/hooks/useFamily";
+import { DocumentUploadModal, type DocumentFormData } from "@/components/DocumentUploadModal";
+import { useCanEdit, useFamilyMembers, useUpdateMember, useDocuments, useFamily, useAddDocument, useDeleteDocument, FamilyMember, type Document as VaultDocument } from "@/hooks/useFamily";
 import { saveDocument } from "@/lib/documentAccess";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ export default function MemberProfilePage() {
   const { user } = useAuth();
   const { data: members, isLoading } = useFamilyMembers();
   const { data: family } = useFamily();
+  const canEdit = useCanEdit();
   const { data: allDocs } = useDocuments();
   const updateMember = useUpdateMember();
   const addDocument = useAddDocument();
@@ -68,7 +69,7 @@ export default function MemberProfilePage() {
     updateMember.mutate({ id: member.id, notes: notes || null });
   };
 
-  const handleUpload = (data: any) => {
+  const handleUpload = (data: DocumentFormData) => {
     if (!family || !user) return;
     addDocument.mutate({
       file: data.file,
@@ -112,7 +113,7 @@ export default function MemberProfilePage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-4">
-          <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
+          <fieldset disabled={!canEdit} className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
             <div><Label>Name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
             <div><Label>Relation</Label>
               <Select value={relation} onValueChange={setRelation}>
@@ -130,17 +131,21 @@ export default function MemberProfilePage() {
               </div>
             </div>
             <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
-            <Button onClick={handleSave} disabled={updateMember.isPending}>
-              {updateMember.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Changes
-            </Button>
-          </div>
+            {canEdit && (
+              <Button onClick={handleSave} disabled={updateMember.isPending}>
+                {updateMember.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Changes
+              </Button>
+            )}
+          </fieldset>
         </TabsContent>
 
         <TabsContent value="documents" className="mt-4">
-          <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4" /> Upload Document</Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end mb-4">
+              <Button className="gap-2" onClick={() => setUploadOpen(true)}><Upload className="h-4 w-4" /> Upload Document</Button>
+            </div>
+          )}
           {!memberDocs.length ? (
             <p className="text-center text-muted-foreground py-12">No documents linked to this member yet.</p>
           ) : (
@@ -156,7 +161,7 @@ export default function MemberProfilePage() {
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}><Download className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteDoc({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
+                    {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteDoc({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>}
                   </div>
                 </div>
               ))}
@@ -168,11 +173,13 @@ export default function MemberProfilePage() {
 
         <TabsContent value="notes" className="mt-4">
           <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={8} placeholder="Write notes about this family member..." />
-            <Button onClick={handleSaveNotes} disabled={updateMember.isPending}>
-              {updateMember.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Notes
-            </Button>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={8} placeholder="Write notes about this family member..." readOnly={!canEdit} />
+            {canEdit && (
+              <Button onClick={handleSaveNotes} disabled={updateMember.isPending}>
+                {updateMember.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Notes
+              </Button>
+            )}
           </div>
         </TabsContent>
       </Tabs>

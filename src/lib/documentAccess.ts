@@ -19,8 +19,12 @@ export function fetchDocumentForPreview(doc: StoredDocument): Promise<Blob> {
   return fetchDocument(doc, "document_viewed");
 }
 
+export function fetchDocumentForDownload(doc: StoredDocument): Promise<Blob> {
+  return fetchDocument(doc, "document_downloaded");
+}
+
 export async function saveDocument(doc: StoredDocument): Promise<void> {
-  const data = await fetchDocument(doc, "document_downloaded");
+  const data = await fetchDocumentForDownload(doc);
   const url = URL.createObjectURL(data);
   const link = document.createElement("a");
   link.href = url;

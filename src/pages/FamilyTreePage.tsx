@@ -5,19 +5,20 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MemberFormModal } from "@/components/MemberFormModal";
-import { useFamilyMembers, useFamily, useAddMember } from "@/hooks/useFamily";
+import { MemberFormModal, type MemberFormData } from "@/components/MemberFormModal";
+import { useCanEdit, useFamilyMembers, useFamily, useAddMember } from "@/hooks/useFamily";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function FamilyTreePage() {
   const { user } = useAuth();
   const { data: family } = useFamily();
+  const canEdit = useCanEdit();
   const { data: members, isLoading } = useFamilyMembers();
   const addMember = useAddMember();
   const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
 
-  const handleAdd = (data: any) => {
+  const handleAdd = (data: MemberFormData) => {
     if (!family || !user) return;
     addMember.mutate({ ...data, family_id: family.id, user_id: user.id, parent_member_id: null }, { onSuccess: () => setFormOpen(false) });
   };
@@ -29,7 +30,7 @@ export default function FamilyTreePage() {
       <PageHeader
         title="Family Tree"
         subtitle="Visualize your family connections."
-        actions={<Button className="gap-2" onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Add Member</Button>}
+        actions={canEdit ? <Button className="gap-2" onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Add Member</Button> : undefined}
       />
 
       {isLoading ? (
@@ -39,8 +40,8 @@ export default function FamilyTreePage() {
           icon={TreePine}
           title="Your family tree starts here"
           description="Add your first family member to begin building your tree."
-          ctaLabel="Add First Member"
-          onCta={() => setFormOpen(true)}
+          ctaLabel={canEdit ? "Add First Member" : undefined}
+          onCta={canEdit ? () => setFormOpen(true) : undefined}
         />
       ) : (
         <div>

@@ -10,11 +10,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePinStatus, setPin, removePin, type PinResult } from "@/hooks/useUserSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { errorMessage } from "@/lib/utils";
 import { Loader2, Sun, Moon, Shield, Lock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { MfaSettings } from "@/components/MfaSettings";
 import { ActivityLog } from "@/components/ActivityLog";
+import { FamilyAccessSettings } from "@/components/FamilyAccessSettings";
+import { YourDataSettings } from "@/components/YourDataSettings";
 import { validateNewPassword } from "@/lib/passwordPolicy";
 import { verifyCurrentPassword } from "@/lib/reauth";
 
@@ -31,7 +34,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("Profile");
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
   const [familyName, setFamilyName] = useState("");
-  const [familyInitialized, setFamilyInitialized] = useState(false);
+  const [loadedFamilyId, setLoadedFamilyId] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -40,12 +43,15 @@ export default function SettingsPage() {
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
-  if (family && !familyInitialized) {
+  if (family && loadedFamilyId !== family.id) {
     setFamilyName(family.name);
-    setFamilyInitialized(true);
+    setLoadedFamilyId(family.id);
   }
 
-  const tabs = ["Profile", "Workspace", "Security", "Activity", "Appearance"];
+  const isOwner = family?.role === "owner";
+  const tabs = ["Profile", ...(isOwner ? ["Workspace"] : []), "Family Access", "Security", ...(isOwner ? ["Activity"] : []), "Your Data", "Appearance"];
+  // Switching to a shared family can hide the tab that was open.
+  const visibleTab = tabs.includes(activeTab) ? activeTab : "Profile";
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -53,8 +59,8 @@ export default function SettingsPage() {
       const { error } = await supabase.auth.updateUser({ data: { full_name: fullName } });
       if (error) throw error;
       toast({ title: "Profile updated", description: "Your name has been saved." });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: errorMessage(e), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -78,8 +84,8 @@ export default function SettingsPage() {
       await supabase.auth.signOut({ scope: "others" });
       setNewPassword(""); setConfirmPassword("");
       toast({ title: "Password updated", description: "Your password has been changed, and other devices have been signed out." });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: errorMessage(e), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -102,8 +108,8 @@ export default function SettingsPage() {
       setCurrentPin(""); setNewPin(""); setConfirmPin("");
       await qc.invalidateQueries({ queryKey: ["pin_status"] });
       toast({ title: "PIN updated", description: "Your app PIN has been changed." });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: errorMessage(e), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -116,8 +122,8 @@ export default function SettingsPage() {
       setCurrentPin("");
       await qc.invalidateQueries({ queryKey: ["pin_status"] });
       toast({ title: "PIN removed", description: "App PIN lock has been disabled." });
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Error", description: errorMessage(e), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -128,14 +134,14 @@ export default function SettingsPage() {
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${visibleTab === tab ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >{tab}</button>
         ))}
       </div>
 
       {isLoading ? <Skeleton className="h-48 max-w-lg rounded-lg" /> : (
         <>
-          {activeTab === "Profile" && (
+          {visibleTab === "Profile" && (
             <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
               <div><Label>Full Name</Label><Input value={fullName} onChange={e => setFullName(e.target.value)} /></div>
               <div><Label>Email</Label><Input value={user?.email || ""} disabled /></div>
@@ -145,7 +151,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === "Workspace" && (
+          {visibleTab === "Workspace" && (
             <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
               <div><Label>Family Workspace Name</Label><Input value={familyName} onChange={e => setFamilyName(e.target.value)} /></div>
               <Button onClick={handleSaveFamily} disabled={updateFamily.isPending}>
@@ -154,7 +160,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === "Security" && (
+          {visibleTab === "Security" && (
             <div className="max-w-lg space-y-6">
               <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /><h3 className="font-semibold">Change Password</h3></div>
@@ -188,9 +194,13 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === "Activity" && <ActivityLog />}
+          {visibleTab === "Activity" && <ActivityLog />}
 
-          {activeTab === "Appearance" && (
+          {visibleTab === "Family Access" && <FamilyAccessSettings />}
+
+          {visibleTab === "Your Data" && <YourDataSettings />}
+
+          {visibleTab === "Appearance" && (
             <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">
               <h3 className="font-semibold">Theme</h3>
               <div className="flex items-center justify-between">

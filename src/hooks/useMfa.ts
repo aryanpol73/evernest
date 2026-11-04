@@ -2,6 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+export interface RecoveryResult {
+  ok: boolean;
+  locked_until: string | null;
+}
+
 export interface TotpEnrollment {
   factorId: string;
   qrCode: string;
@@ -34,6 +39,38 @@ export function useTotpFactors() {
     },
     enabled: !!user,
   });
+}
+
+export function useRecoveryCodesRemaining(enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["mfa_recovery_remaining", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("mfa_recovery_codes_remaining");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && enabled,
+  });
+}
+
+export async function generateRecoveryCodes(): Promise<string[]> {
+  const { data, error } = await supabase.rpc("generate_mfa_recovery_codes");
+  if (error) throw error;
+  return data;
+}
+
+export async function redeemRecoveryCode(code: string): Promise<RecoveryResult> {
+  const { data, error } = await supabase.rpc("redeem_mfa_recovery_code", { _code: code });
+  if (error) throw error;
+  const result = data as unknown as RecoveryResult;
+  if (result.ok) {
+    // The session still lists the deleted factor until it is refreshed. Whoever
+    // lost the device could also be signed in somewhere else.
+    await supabase.auth.refreshSession();
+    await supabase.auth.signOut({ scope: "others" });
+  }
+  return result;
 }
 
 export async function verifyTotpCode(code: string): Promise<void> {

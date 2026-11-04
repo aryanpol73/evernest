@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TreePine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { errorMessage } from "@/lib/utils";
+import { readPendingInvite } from "@/lib/pendingInvite";
 import { MIN_PASSWORD_LENGTH, validateNewPassword } from "@/lib/passwordPolicy";
 
 export default function AuthPage() {
@@ -54,10 +56,10 @@ export default function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate("/dashboard");
+        navigate(readPendingInvite() ? "/invite" : "/dashboard");
       }
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: errorMessage(err), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -74,6 +76,12 @@ export default function AuthPage() {
           <h1 className="text-2xl font-bold">{isForgot ? "Reset your password" : isSignUp ? "Create your account" : "Welcome back"}</h1>
           <p className="text-muted-foreground mt-1">{isForgot ? "We'll email you a reset link" : isSignUp ? "Start organizing your family's life" : "Sign in to your family workspace"}</p>
         </div>
+
+        {readPendingInvite() && (
+          <p className="mb-4 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
+            You've been invited to a family. Use the email address the invite was sent to. If you create an account, confirm your email, then open your invite link again.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
           {isSignUp && !isForgot && (

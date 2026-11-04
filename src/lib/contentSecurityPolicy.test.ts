@@ -28,6 +28,11 @@ describe("buildContentSecurityPolicy", () => {
     expect(buildContentSecurityPolicy(`${SUPABASE_URL}/rest/v1`)).toContain(`connect-src 'self' ${SUPABASE_URL};`);
   });
 
+  it("loads nothing from third parties except Supabase", () => {
+    const hosts = buildContentSecurityPolicy(SUPABASE_URL).match(/https:\/\/[^\s;]+/g);
+    expect(hosts).toEqual([SUPABASE_URL]);
+  });
+
   it("never allows wildcards or unsafe script sources", () => {
     const policy = buildContentSecurityPolicy(SUPABASE_URL);
     expect(policy).not.toContain("*");

@@ -11,10 +11,19 @@ import { ACCEPTED_FILE_TYPES, validateDocumentFile } from "@/lib/documentFiles";
 
 const CATEGORIES = ["Identity", "Medical", "Insurance", "Property", "Education", "Financial"];
 
+export interface DocumentFormData {
+  file: File;
+  name: string;
+  category: string;
+  memberId: string | null;
+  expiryDate: string | null;
+  tags: string[];
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { file: File; name: string; category: string; memberId: string | null; expiryDate: string | null; tags: string[] }) => void;
+  onSubmit: (data: DocumentFormData) => void;
   members: FamilyMember[];
   loading?: boolean;
   preselectedMemberId?: string | null;

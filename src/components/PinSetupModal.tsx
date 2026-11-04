@@ -51,8 +51,8 @@ export function PinSetupModal({ open, onComplete, onSkip }: Props) {
       await savePinOnServer(pinCode);
       await qc.invalidateQueries({ queryKey: ["pin_status"] });
       setStage("done");
-      toast({ title: "PIN set! 🔒", description: "Your EverNest is now secured." });
-    } catch (e: any) {
+      toast({ title: "PIN set! 🔒", description: "EverNest will ask for it on this device." });
+    } catch {
       setError("Failed to set PIN. Please try again.");
     } finally {
       setLoading(false);
@@ -85,8 +85,8 @@ export function PinSetupModal({ open, onComplete, onSkip }: Props) {
             <div className="inline-flex rounded-full bg-primary/10 p-4">
               <Shield className="h-10 w-10 text-primary" />
             </div>
-            <h2 className="text-xl font-bold">Secure Your EverNest</h2>
-            <p className="text-sm text-muted-foreground">We recommend setting a PIN to protect your family's documents.</p>
+            <h2 className="text-xl font-bold">Lock EverNest With a PIN</h2>
+            <p className="text-sm text-muted-foreground">A PIN stops someone using EverNest on your device when you step away.</p>
             <Button className="w-full" onClick={() => setStage("enter")}>Set PIN Now</Button>
             <Button variant="ghost" className="w-full" onClick={onSkip}>Maybe Later</Button>
           </div>
@@ -111,7 +111,7 @@ export function PinSetupModal({ open, onComplete, onSkip }: Props) {
             <div className="inline-flex rounded-full bg-success/10 p-4">
               <Check className="h-10 w-10 text-success" />
             </div>
-            <h2 className="text-xl font-bold">Your EverNest is Secured! 🔒</h2>
+            <h2 className="text-xl font-bold">Your PIN Is Set 🔒</h2>
             <p className="text-sm text-muted-foreground">Your PIN will be required after periods of inactivity.</p>
             <Button className="w-full" onClick={onComplete}>Continue to Dashboard</Button>
           </div>

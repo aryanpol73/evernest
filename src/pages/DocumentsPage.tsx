@@ -5,10 +5,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DocumentUploadModal } from "@/components/DocumentUploadModal";
+import { DocumentUploadModal, type DocumentFormData } from "@/components/DocumentUploadModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useFamily, useFamilyMembers, useDocuments, useAddDocument, useDeleteDocument, type Document as VaultDocument } from "@/hooks/useFamily";
+import { useCanEdit, useFamily, useFamilyMembers, useDocuments, useAddDocument, useDeleteDocument, type Document as VaultDocument } from "@/hooks/useFamily";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { previewKindFor, type PreviewKind } from "@/lib/documentFiles";
@@ -19,6 +19,7 @@ const categories = ["All", "Identity", "Medical", "Insurance", "Property", "Educ
 export default function DocumentsPage() {
   const { user } = useAuth();
   const { data: family } = useFamily();
+  const canEdit = useCanEdit();
   const { data: members } = useFamilyMembers();
   const { data: docs, isLoading } = useDocuments();
   const addDocument = useAddDocument();
@@ -39,7 +40,7 @@ export default function DocumentsPage() {
 
   const getMemberName = (memberId: string | null) => memberId ? members?.find(m => m.id === memberId)?.name || null : null;
 
-  const handleUpload = (data: any) => {
+  const handleUpload = (data: DocumentFormData) => {
     if (!family || !user) return;
     addDocument.mutate({
       file: data.file,
@@ -66,7 +67,7 @@ export default function DocumentsPage() {
     try {
       const data = await fetchDocumentForPreview(doc);
       // The type comes from the allowlist, never from the downloaded response.
-      setPreview({ url: URL.createObjectURL(new Blob([data], { type: doc.file_type })), name: doc.name, kind });
+      setPreview({ url: URL.createObjectURL(new Blob([data], { type: doc.file_type ?? undefined })), name: doc.name, kind });
     } catch (e) {
       toast({ title: "Preview failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
     }
@@ -82,7 +83,7 @@ export default function DocumentsPage() {
       <PageHeader
         title="Document Vault"
         subtitle="Your family's important documents, organized and secure."
-        actions={<Button className="gap-2" onClick={() => setUploadOpen(true)}><Plus className="h-4 w-4" /> Upload Document</Button>}
+        actions={canEdit ? <Button className="gap-2" onClick={() => setUploadOpen(true)}><Plus className="h-4 w-4" /> Upload Document</Button> : undefined}
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -109,8 +110,8 @@ export default function DocumentsPage() {
           illustration={!search && activeCategory === "All" ? "folder" : undefined}
           title={search || activeCategory !== "All" ? "No matching documents" : "Your document vault is empty"}
           description={search || activeCategory !== "All" ? "Try a different search or category." : "Start by uploading an important document for any family member."}
-          ctaLabel={!search && activeCategory === "All" ? "Upload First Document" : undefined}
-          onCta={!search && activeCategory === "All" ? () => setUploadOpen(true) : undefined}
+          ctaLabel={canEdit && !search && activeCategory === "All" ? "Upload First Document" : undefined}
+          onCta={canEdit && !search && activeCategory === "All" ? () => setUploadOpen(true) : undefined}
         />
       ) : (
         <div className="space-y-2">
@@ -128,7 +129,7 @@ export default function DocumentsPage() {
               <div className="flex gap-1 shrink-0">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreview(doc)}><Eye className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}><Download className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
+                {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>}
               </div>
             </div>
           ))}

@@ -102,7 +102,7 @@ export function PinLockScreen({ onUnlock }: Props) {
         <TreePine className="h-10 w-10 text-primary" />
         <span className="text-2xl font-bold text-white">EverNest</span>
       </div>
-      <p className="text-sm text-white/50 mb-8">Your family's documents are protected</p>
+      <p className="text-sm text-white/50 mb-8">Enter your PIN to continue</p>
 
       {/* PIN dots */}
       <div className="flex gap-3 mb-6">

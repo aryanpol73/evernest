@@ -11,10 +11,12 @@ import { Loader2 } from "lucide-react";
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const RELATIONS = ["Self", "Spouse", "Father", "Mother", "Son", "Daughter", "Brother", "Sister", "Grandfather", "Grandmother", "Uncle", "Aunt", "Cousin", "Other"];
 
+export type MemberFormData = Pick<FamilyMember, "name" | "relation" | "date_of_birth" | "blood_group" | "phone" | "notes">;
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: MemberFormData) => void;
   member?: FamilyMember | null;
   loading?: boolean;
 }

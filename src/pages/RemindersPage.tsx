@@ -4,13 +4,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDocuments, useFamilyMembers, useDismissReminder } from "@/hooks/useFamily";
+import { useCanEdit, useDocuments, useFamilyMembers, useDismissReminder } from "@/hooks/useFamily";
 import { differenceInDays } from "date-fns";
 
 export default function RemindersPage() {
   const { data: docs, isLoading } = useDocuments();
   const { data: members } = useFamilyMembers();
   const dismiss = useDismissReminder();
+  const canEdit = useCanEdit();
   const navigate = useNavigate();
 
   const expiringDocs = docs?.filter(d => d.expiry_date && !d.dismissed_reminder && differenceInDays(new Date(d.expiry_date), new Date()) >= 0) || [];
@@ -39,7 +40,7 @@ export default function RemindersPage() {
                     {days}d left
                   </span>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/documents")}><Eye className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => dismiss.mutate(doc.id)}><X className="h-4 w-4" /></Button>
+                  {canEdit && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => dismiss.mutate(doc.id)}><X className="h-4 w-4" /></Button>}
                 </div>
               </div>
             );

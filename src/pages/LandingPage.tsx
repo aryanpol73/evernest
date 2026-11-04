@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Shield, TreePine, FileText, Bell, Siren, Users, ChevronRight, Star, Check, Lock, Server, EyeOff, Download } from "lucide-react";
+import { Shield, TreePine, FileText, Bell, Siren, Users, ChevronRight, Check, Lock, KeyRound, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const fadeUp = {
@@ -17,23 +17,17 @@ const problems = [
 const features = [
   { icon: TreePine, title: "Family Tree Visualization", desc: "See your entire family at a glance with an interactive tree." },
   { icon: FileText, title: "Smart Document Vault", desc: "Upload, organize, and instantly find any family document." },
-  { icon: Bell, title: "Expiry Reminders", desc: "Never miss a renewal with automated expiry alerts." },
+  { icon: Bell, title: "Expiry Reminders", desc: "See what's expiring soon, so renewals don't catch you out." },
   { icon: Siren, title: "Emergency Access Mode", desc: "Critical info at your fingertips when every second counts." },
   { icon: Users, title: "Member Profiles", desc: "Complete profiles for every family member in one place." },
-  { icon: Shield, title: "Secure & Private", desc: "Bank-level encryption keeps your family data safe." },
+  { icon: Shield, title: "Secure & Private", desc: "Encrypted storage, with access limited to the people you invite." },
 ];
 
 const trustCards = [
-  { icon: Lock, title: "Bank-Grade Encryption", text: "All documents encrypted with AES-256. Your files are unreadable to anyone but you." },
-  { icon: Server, title: "Powered by AWS", text: "Documents stored on Amazon Web Services infrastructure, the same technology trusted by banks and governments." },
-  { icon: EyeOff, title: "We Cannot Read Your Files", text: "EverNest staff have zero access to your uploaded documents. Your family's privacy is absolute." },
-  { icon: Download, title: "Your Data, Always", text: "Export and download all your data anytime. If you leave, everything comes with you. No lock-in, ever." },
-];
-
-const testimonials = [
-  { name: "Priya Sharma", role: "Mother of 3", text: "EverNest saved us when we needed insurance documents during a hospital visit. Everything was right there." },
-  { name: "Rajesh Patel", role: "Family Manager", text: "I used to keep everything in a drawer. Now my whole family's important info is organized and accessible." },
-  { name: "Anita Desai", role: "Caregiver", text: "Managing documents for my parents was chaos. EverNest made it simple and stress-free." },
+  { icon: Lock, title: "Encrypted Storage", text: "Your documents and records are encrypted with AES-256 at rest and TLS in transit by our infrastructure provider." },
+  { icon: Users, title: "Family-Only Access", text: "Each family's records are kept apart at the database level. You choose who joins and what they can do." },
+  { icon: KeyRound, title: "You Stay in Control", text: "Turn on two-step verification, review recent activity, and remove someone's access at any time." },
+  { icon: Download, title: "Your Data, Your Choice", text: "Download your records and documents anytime, or delete your account and everything in it." },
 ];
 
 export default function LandingPage() {
@@ -76,7 +70,7 @@ export default function LandingPage() {
       {/* Trust Bar */}
       <div className="text-center py-4">
         <p className="text-sm text-muted-foreground">
-          🔒 AES-256 Encrypted  |  ☁️ Stored on AWS  |  🇮🇳 Made in India  |  ✅ GDPR Compliant
+          🔒 Encrypted at Rest and in Transit  |  👪 Family-Only Access  |  🇮🇳 Made in India  |  📦 Export Anytime
         </p>
       </div>
 
@@ -137,23 +131,9 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-20">
-        <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-12">Trusted by Families</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <motion.div key={i} variants={fadeUp} custom={i} initial="hidden" whileInView="visible" viewport={{ once: true }}
-                className="rounded-lg border bg-card p-6 shadow-sm">
-                <div className="flex gap-1 mb-3">{[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 fill-accent text-accent" />)}</div>
-                <p className="text-sm mb-4 italic">"{t.text}"</p>
-                <div><p className="font-semibold text-sm">{t.name}</p><p className="text-xs text-muted-foreground">{t.role}</p></div>
-              </motion.div>
-            ))}
-          </div>
+          <p className="text-xs text-muted-foreground text-center mt-8 max-w-xl mx-auto">
+            EverNest is not end-to-end encrypted. Encryption protects stored data, and access controls limit who can reach it.
+          </p>
         </div>
       </section>
 
@@ -161,7 +141,7 @@ export default function LandingPage() {
       <section className="py-20 bg-muted/50">
         <div className="container">
           <h2 className="text-3xl font-bold text-center mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-muted-foreground text-center mb-12">Start free, upgrade when you need more.</p>
+          <p className="text-muted-foreground text-center mb-12">Start free today. Pro is coming soon.</p>
           <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
             <div className="rounded-lg border bg-card p-8 shadow-sm">
               <h3 className="text-xl font-bold mb-1">Free</h3>
@@ -175,7 +155,7 @@ export default function LandingPage() {
               <Link to="/auth?mode=signup"><Button variant="outline" className="w-full">Get Started</Button></Link>
             </div>
             <div className="rounded-lg border-2 border-primary bg-card p-8 relative shadow-sm">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">Most Popular</div>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">Coming Soon</div>
               <h3 className="text-xl font-bold mb-1">Pro</h3>
               <p className="text-muted-foreground text-sm mb-4">For families who want it all</p>
               <p className="text-3xl font-bold mb-6">₹299 <span className="text-sm font-normal text-muted-foreground">/ month</span></p>
@@ -184,7 +164,7 @@ export default function LandingPage() {
                   <li key={f} className="flex items-center gap-2 text-sm"><Check className="h-4 w-4 text-success" />{f}</li>
                 ))}
               </ul>
-              <Link to="/auth?mode=signup"><Button className="w-full">Start Pro Trial</Button></Link>
+              <Button className="w-full" disabled>Coming Soon</Button>
             </div>
           </div>
         </div>
