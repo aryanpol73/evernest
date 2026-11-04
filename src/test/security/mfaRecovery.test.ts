@@ -104,6 +104,12 @@ describe("MFA recovery codes", () => {
       expect(after.rows).toHaveLength(1);
     });
 
+    it("works for a Google account that has just signed in", async () => {
+      const user = await mfaUser();
+      const [code] = await generate(user);
+      expect((await redeem(user, code, { aal: "aal1", amr: [{ method: "oauth", timestamp: now() }] })).ok).toBe(true);
+    });
+
     it("accepts a code however it is typed", async () => {
       const user = await mfaUser();
       const [code] = await generate(user);
@@ -113,11 +119,12 @@ describe("MFA recovery codes", () => {
     it.each([
       ["no sign-in proof", {}],
       ["an old sign-in", { amr: [{ method: "password", timestamp: 1 }] }],
-      ["a non-password sign-in", { amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }] }],
+      ["a one-time code sign-in", { amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }] }],
+      ["a password reset link", { amr: [{ method: "recovery", timestamp: Math.floor(Date.now() / 1000) }] }],
     ])("is refused with %s, so a code alone is not enough", async (_name, claims) => {
       const user = await mfaUser();
       const [code] = await generate(user);
-      await expect(redeem(user, code, claims)).rejects.toThrow(/recent password sign-in/);
+      await expect(redeem(user, code, claims)).rejects.toThrow(/recent sign-in/);
       expect(await factorCount(user)).toBe(1);
     });
 

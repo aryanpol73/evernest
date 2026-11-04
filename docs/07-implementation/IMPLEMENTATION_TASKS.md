@@ -6,14 +6,17 @@
 
 The fixes below are in the repository but **not pushed or applied**. Users are unprotected until these steps are done.
 
-1. Check the live database for signs of the storage exploit (see below).
-2. Configure Supabase Auth (`supabase config push`, or the dashboard):
-   - Add `<your site URL>/reset-password` to the allowed redirect URLs, or reset emails will send people to the wrong page.
-   - Set minimum password length to 10, requiring letters and digits, as in `supabase/config.toml`.
-   - Confirm TOTP MFA is enabled.
-3. Apply all six migrations in order: `20261104120000_security_hardening.sql`, `20261104130000_require_mfa_when_enrolled.sql`, `20261104140000_audit_log.sql`, `20261104150000_account_deletion.sql`, `20261104160000_family_roles.sql`, then `20261104170000_mfa_recovery.sql`.
-4. Deploy the client at the same time. The first migration drops the PIN columns, so older clients stop showing the PIN lock, and new clients show an error screen until it is applied. Pushing to `main` may deploy through Lovable, so treat the push as the deploy.
-5. In the deployed app, test upload, preview, PIN set, wrong PIN, Forgot PIN, forgot password, MFA on, sign-in with a code, recovering with a recovery code, MFA off, the Settings Activity tab, a data export, deleting a throwaway account, and the whole invite flow with a second real account: invite as viewer, accept, confirm the viewer can read but not change anything, change them to editor, then remove them. Check the browser console for Content-Security-Policy errors throughout, and confirm a PDF preview displays in Chrome, Safari, and Firefox, and that the PWA still installs.
+The database is managed by Lovable, so there is no Supabase dashboard. Run SQL at **More → Database → Manage → SQL editor** in Lovable. Daily backups are under **Manage → Backups**, and **Export** is under **Manage → Settings**. Per Lovable's docs, a Git push updates the editor preview but never publishes, and it never runs migration files, so each of those is a separate step.
+
+The scripts live in a local `release/` folder, which is not committed. `02-apply-release.sql` is all seven migrations in one transaction, including a repair for three accounts that predate the signup trigger.
+
+1. Run `01-preflight-check.sql` and review the results, including the exploit checks below.
+2. Set the auth options under **More → Users → Settings**: in **Email**, require 10+ characters with letters and digits. In **Advanced**, allow `<your site URL>/reset-password` as a redirect URL. Lovable's docs don't mention MFA, so confirm it works during the live test.
+3. Export the database, then run `02-apply-release.sql`, then `03-verify-release.sql`. Every row should say PASS. The storage flaw is closed from this point.
+4. Push to GitHub, and confirm CI passes and the commits appear in Lovable.
+5. Click **Publish** in Lovable straight away. Until then the live site runs the old client, which loses the PIN lock against the new database.
+6. Turn on private vulnerability reporting on GitHub (Settings → Advanced Security), which `SECURITY.md` relies on.
+7. In the published app, test upload, preview, PIN set, wrong PIN, Forgot PIN, forgot password, MFA on, sign-in with a code, recovering with a recovery code, MFA off, the Settings Activity tab, a data export, deleting a throwaway account, Forgot PIN, MFA off, and account deletion with a Google-only account, and the whole invite flow with a second real account: invite as viewer, accept, confirm the viewer can read but not change anything, change them to editor, then remove them. Check the browser console for Content-Security-Policy errors throughout, and confirm a PDF preview displays in Chrome, Safari, and Firefox, and that the PWA still installs.
 
 ### Exploit check for the live database
 
@@ -44,11 +47,13 @@ Also check for a user reading or deleting objects outside their own family folde
 | SEC-12 | Server-verified document reads, through an Edge Function issuing signed URLs (ADR-007) | Open |
 | SEC-11 | MFA recovery codes for lost devices | Done in repo, not released |
 | SEC-7 | Content-Security-Policy and referrer policy in the built HTML | Done in repo, not released |
-| SEC-13 | Host response headers that a meta tag cannot set (see below) | Blocked on hosting choice |
+| SEC-13 | Host response headers that a meta tag cannot set (see below). Lovable's docs don't describe setting them, so this may need hosting elsewhere | Blocked on hosting choice |
 | SEC-14 | Self-hosted fonts. The only third party the app contacts is Supabase | Done in repo, not released |
 | SEC-8 | Public claims corrected, with a regression test | Done in repo, not released |
 | SEC-9 | Data export, account deletion, and 12-month audit retention | Done in repo, not released |
 | SEC-10 | Decide and build the document encryption model (ADR-002) | Blocked on owner decision |
+| SEC-15 | Google sign-in, with fresh sign-in proof for accounts that have no password | Done in repo, not released |
+| QA-2 | CI workflow, Dependabot, `SECURITY.md`, project README, and template metadata removed | Done in repo, not released |
 | QA-1 | Lint at 0 errors (9 warnings remain, 8 of them fast-refresh hints in UI files), TypeScript `strict` on | Done |
 | FEAT-1 | Family invites with owner, editor, and viewer roles | Done in repo, not released |
 | FEAT-2 | Send invite emails. Owners copy a link for now, because sending needs an email provider | Blocked on provider choice |
@@ -78,7 +83,7 @@ Until `frame-ancestors` is set, the app can be framed by another site (clickjack
 
 ## Verification notes
 
-- **Open:** twice, `npm test` exited with an error and printed no summary, and the cause is unknown. It did not recur in 13 straight runs, including 4 right after changing many files. Run the suite in CI from a clean checkout before relying on it, and capture the full output if it happens again.
+- `npm test` used to crash intermittently with no summary. The cause was memory: each database test file runs its own WebAssembly Postgres, and too many ran in parallel. `maxWorkers` in `vitest.config.ts` now limits this, so raise it with care.
 - Database tests run real Postgres (PGlite) with a stub of Supabase's `auth` and `storage` schemas and default privileges. They do not cover Supabase's Storage API or Auth service.
 - `reset_pin_after_login` relies on the JWT `amr` claim. Its format is assumed from Supabase documentation, so confirm Forgot PIN in a real project.
 - `mfa_satisfied` reads `auth.mfa_factors` as the function owner. The test stub cannot prove that owner has access on hosted Supabase, so confirm MFA end to end in a real project. If it lacks access, every RLS check on the protected tables fails with an error.

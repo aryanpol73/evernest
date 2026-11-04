@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Each database test file runs its own WebAssembly Postgres. Too many at once
+    // exhausts memory and crashes the run with no test summary.
+    maxWorkers: 3,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

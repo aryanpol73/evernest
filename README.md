@@ -1,73 +1,65 @@
-# Welcome to your Lovable project
+# EverNest
 
-## Project info
+A secure home for a family's important records: documents, member profiles, expiry dates, and the information you need in an emergency.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- Document vault with categories, search, and safe previews
+- Family members, a family tree, and an emergency page
+- Shared families with owner, editor, and viewer roles
+- Two-step verification with recovery codes, and an app PIN
+- Activity log, full data export, and account deletion
 
-There are several ways of editing your application.
+## Tech stack
 
-**Use Lovable**
+React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, TanStack Query, and Supabase (Postgres, Auth, Storage).
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+There is no custom backend. The browser talks to Supabase directly, so **Postgres Row Level Security is what protects user data**. Treat every change to a policy as a security change.
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting started
 
-**Use your preferred IDE**
+You need Node.js 22 or later.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+npm ci
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs at http://localhost:8080 and uses the Supabase project set in `.env`. That file holds only the public URL and `anon` key. Never add a `service_role` key or any other secret to it, because this repository is public.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Checks
 
-**Use GitHub Codespaces**
+| Command | What it does |
+|---|---|
+| `npm run typecheck` | Strict TypeScript checks |
+| `npm run lint` | ESLint |
+| `npm test` | All tests, including the database security tests |
+| `npm run build` | Production build |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+CI runs all of these on every push and pull request, along with `npm audit`.
 
-## What technologies are used for this project?
+The tests in `src/test/security/` apply the real migrations to an in-process Postgres (PGlite) and attack them as real database roles, so they need no Docker. Add tests there for any new table or policy, including an attempt from a second family.
 
-This project is built with:
+After changing fonts, assets, or the Content-Security-Policy, load a production build in a browser and check for violations. Unit tests can't catch those.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Project layout
 
-## How can I deploy this project?
+| Path | Contents |
+|---|---|
+| `src/pages`, `src/components` | Screens and UI |
+| `src/hooks`, `src/contexts` | Data access and app state |
+| `src/lib` | Security-sensitive helpers, such as file handling, export, and the CSP |
+| `src/test/security` | Database attack tests |
+| `supabase/migrations` | Schema, RLS policies, and database functions |
+| `docs` | Audit, decisions, and task tracker |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Documentation
 
-## Can I connect a custom domain to my Lovable project?
+Start with [EVERNEST_MASTER_CONTEXT.md](EVERNEST_MASTER_CONTEXT.md). Then see the [architecture decisions](docs/02-architecture/ARCHITECTURE_DECISIONS.md), the [task tracker](docs/07-implementation/IMPLEMENTATION_TASKS.md), and the [audit](docs/00-project-overview/CURRENT_STATE_AUDIT.md).
 
-Yes, you can!
+## Security
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+To report a vulnerability, see [SECURITY.md](SECURITY.md).

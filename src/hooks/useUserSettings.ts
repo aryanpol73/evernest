@@ -79,7 +79,13 @@ export async function removePin(currentPin: string): Promise<PinResult> {
   return data as unknown as PinResult;
 }
 
-// Signing in again produces the fresh password proof the database requires.
+// For Google accounts that have just signed in again.
+export async function resetPinAfterSignIn(): Promise<void> {
+  const { error } = await supabase.rpc("reset_pin_after_login");
+  if (error) throw error;
+}
+
+// Signing in again produces the fresh proof the database requires.
 export async function resetPinWithPassword(email: string, password: string): Promise<void> {
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
   if (signInError) throw signInError;

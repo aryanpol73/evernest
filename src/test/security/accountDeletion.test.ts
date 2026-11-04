@@ -72,12 +72,20 @@ describe("account deletion", () => {
   it.each([
     ["no sign-in proof", {}],
     ["an old sign-in", { amr: [{ method: "password", timestamp: now() - 3600 }] }],
-    ["a non-password sign-in", { amr: [{ method: "otp", timestamp: now() }] }],
+    ["a one-time code sign-in", { amr: [{ method: "otp", timestamp: now() }] }],
+    ["a password reset link", { amr: [{ method: "recovery", timestamp: now() }] }],
   ])("refuses a session with %s", async (_name, claims) => {
     await seed(USER);
     await removeFiles(USER);
     await expect(remove(USER, claims)).rejects.toThrow(/recent sign-in/);
     expect(await userExists(USER)).toBe(true);
+  });
+
+  it("works for a Google account that has just signed in", async () => {
+    await seed(USER);
+    await removeFiles(USER);
+    await remove(USER, { aal: "aal1", amr: [{ method: "oauth", timestamp: now() }] });
+    expect(await userExists(USER)).toBe(false);
   });
 
   it("requires MFA when enrolled", async () => {

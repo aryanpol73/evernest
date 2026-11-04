@@ -9,10 +9,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { RecoveryCodesPanel } from "@/components/RecoveryCodesPanel";
 import { confirmTotpEnrollment, generateRecoveryCodes, removeTotpFactor, startTotpEnrollment, useRecoveryCodesRemaining, useTotpFactors, type TotpEnrollment } from "@/hooks/useMfa";
+import { confirmWithGoogle, hasRecentSignIn, usesPassword } from "@/lib/freshSignIn";
 import { verifyCurrentPassword } from "@/lib/reauth";
 
 export function MfaSettings() {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const { data: factors, isLoading, isError } = useTotpFactors();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -60,9 +61,14 @@ export function MfaSettings() {
 
   const handleRemove = () => run(async () => {
     if (!factor || !user?.email) return;
-    const confirmed = await verifyCurrentPassword(user.email, password);
-    setPassword("");
-    if (!confirmed) throw new Error("That password is incorrect.");
+    if (usesPassword(user)) {
+      const confirmed = await verifyCurrentPassword(user.email, password);
+      setPassword("");
+      if (!confirmed) throw new Error("That password is incorrect.");
+    } else if (!hasRecentSignIn(session)) {
+      await confirmWithGoogle("/settings?tab=Security");
+      return;
+    }
     await removeTotpFactor(factor.id);
     await qc.invalidateQueries({ queryKey: ["mfa_factors"] });
     toast({ title: "Two-step verification off", description: "Your account now relies on your password alone." });
@@ -93,11 +99,19 @@ export function MfaSettings() {
             </div>
           )}
 
-          <div>
-            <Label htmlFor="mfa-remove-password">Account password</Label>
-            <Input id="mfa-remove-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
-          </div>
-          <Button variant="outline" onClick={handleRemove} disabled={busy || !password}>Turn Off</Button>
+          {usesPassword(user) ? (
+            <>
+              <div>
+                <Label htmlFor="mfa-remove-password">Account password</Label>
+                <Input id="mfa-remove-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
+              </div>
+              <Button variant="outline" onClick={handleRemove} disabled={busy || !password}>Turn Off</Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={handleRemove} disabled={busy}>
+              {hasRecentSignIn(session) ? "Turn Off" : "Confirm With Google to Turn Off"}
+            </Button>
+          )}
         </>
       )}
 

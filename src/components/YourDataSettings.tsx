@@ -7,13 +7,14 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTotpFactors } from "@/hooks/useMfa";
 import { useToast } from "@/hooks/use-toast";
-import { deleteAccount } from "@/lib/accountDeletion";
+import { deleteAccount, deleteAccountWithCurrentSession } from "@/lib/accountDeletion";
+import { confirmWithGoogle, hasRecentSignIn, usesPassword } from "@/lib/freshSignIn";
 import { buildDataExport, saveDataExport } from "@/lib/dataExport";
 
 const CONFIRMATION_WORD = "DELETE";
 
 export function YourDataSettings() {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const { data: factors } = useTotpFactors();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -25,7 +26,18 @@ export function YourDataSettings() {
   const [confirmation, setConfirmation] = useState("");
 
   const needsMfaCode = !!factors?.length;
-  const canDelete = !deleting && !!password && confirmation === CONFIRMATION_WORD && (!needsMfaCode || mfaCode.length === 6);
+  const hasPassword = usesPassword(user);
+  const canDelete = hasPassword
+    ? !deleting && !!password && confirmation === CONFIRMATION_WORD && (!needsMfaCode || mfaCode.length === 6)
+    : !deleting && hasRecentSignIn(session) && confirmation === CONFIRMATION_WORD;
+
+  const handleConfirmWithGoogle = async () => {
+    try {
+      await confirmWithGoogle("/settings?tab=Your%20Data");
+    } catch (e) {
+      toast({ title: "Couldn't confirm it's you", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
+    }
+  };
 
   const handleExport = async () => {
     if (!user) return;
@@ -45,7 +57,8 @@ export function YourDataSettings() {
     if (!user?.email || !canDelete) return;
     setDeleting(true);
     try {
-      await deleteAccount({ email: user.email, password, mfaCode: mfaCode || undefined });
+      if (hasPassword) await deleteAccount({ email: user.email, password, mfaCode: mfaCode || undefined });
+      else await deleteAccountWithCurrentSession();
       toast({ title: "Account deleted", description: "Your account and documents have been removed." });
       navigate("/", { replace: true });
     } catch (e) {
@@ -71,11 +84,15 @@ export function YourDataSettings() {
         <div className="flex items-center gap-2"><Trash2 className="h-5 w-5 text-destructive" /><h3 className="font-semibold">Delete Your Account</h3></div>
         <p className="text-sm text-muted-foreground">This permanently deletes your account, family records, activity history, and every document. It can't be undone, so download your data first.</p>
         <p className="text-sm text-muted-foreground">Everyone you've invited loses access to your family. Anything you added to a family you were invited to stays with that family.</p>
-        <div>
-          <Label htmlFor="delete-password">Account password</Label>
-          <Input id="delete-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
-        </div>
-        {needsMfaCode && (
+        {hasPassword ? (
+          <div>
+            <Label htmlFor="delete-password">Account password</Label>
+            <Input id="delete-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} />
+          </div>
+        ) : !hasRecentSignIn(session) && (
+          <Button type="button" variant="outline" onClick={handleConfirmWithGoogle}>Confirm It's You With Google</Button>
+        )}
+        {hasPassword && needsMfaCode && (
           <div>
             <Label htmlFor="delete-code">Security code</Label>
             <Input id="delete-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={e => setMfaCode(e.target.value.replace(/\D/g, ""))} />

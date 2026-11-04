@@ -160,3 +160,15 @@ Supabase's security page says customer data is encrypted at rest with AES-256 an
 | "Most Popular", "Start Pro Trial" | Billing exists |
 
 The Free plan's limits (3 members, 25 documents) are listed but not enforced, and every feature is available to everyone. Enforce the plans as part of billing.
+
+## ADR-014: Google sign-in and fresh sign-in proof
+
+**Status:** Accepted
+
+Google sign-in comes from Lovable through `@lovable.dev/cloud-auth-js`, and works by a top-level redirect to `/~oauth/initiate` on the app's own domain. That route is served by Lovable's hosting, so moving hosts (SEC-13) means replacing this flow.
+
+Account deletion, recovery codes, and Forgot PIN need proof of a sign-in in the last five minutes, not just a session. `private.has_recent_sign_in()` accepts the `password` and `oauth` methods in the JWT `amr` claim. Reset links and one-time codes don't count, because they only prove access to an inbox.
+
+Google-only accounts have no password, so they confirm by signing in with Google again (`src/lib/freshSignIn.ts`), and the Change Password card is hidden. Unlike the password flows, this replaces the main session, so a user with MFA passes the MFA screen again on the way back. `hasRecentSignIn` only decides what to show, and the server re-checks the signed token.
+
+**To confirm live:** that Lovable's flow produces an `oauth` entry in `amr`. If it doesn't, Google users can't delete accounts or use recovery codes, and the check needs adjusting.

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { ActivityLog } from "@/components/ActivityLog";
 import { FamilyAccessSettings } from "@/components/FamilyAccessSettings";
 import { YourDataSettings } from "@/components/YourDataSettings";
 import { validateNewPassword } from "@/lib/passwordPolicy";
+import { usesPassword } from "@/lib/freshSignIn";
 import { verifyCurrentPassword } from "@/lib/reauth";
 
 export default function SettingsPage() {
@@ -31,7 +33,9 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState("Profile");
+  // Set when returning from confirming a sign-in with Google.
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") ?? "Profile");
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
   const [familyName, setFamilyName] = useState("");
   const [loadedFamilyId, setLoadedFamilyId] = useState<string | null>(null);
@@ -162,7 +166,13 @@ export default function SettingsPage() {
 
           {visibleTab === "Security" && (
             <div className="max-w-lg space-y-6">
-              <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
+              {!usesPassword(user) && (
+                <div className="rounded-lg border bg-card p-6 shadow-sm">
+                  <p className="text-sm text-muted-foreground">You sign in with Google, so there's no EverNest password to change.</p>
+                </div>
+              )}
+
+              {usesPassword(user) && <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /><h3 className="font-semibold">Change Password</h3></div>
                 <div><Label>Current Password</Label><Input type="password" autoComplete="current-password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" /></div>
                 <div><Label>New Password</Label><Input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" /></div>
@@ -170,7 +180,7 @@ export default function SettingsPage() {
                 <Button onClick={handleChangePassword} disabled={saving || !newPassword || !currentPassword}>
                   {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Update Password
                 </Button>
-              </div>
+              </div>}
 
               <MfaSettings />
 

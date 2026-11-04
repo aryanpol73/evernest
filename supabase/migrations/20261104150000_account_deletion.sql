@@ -14,8 +14,7 @@ REVOKE ALL ON FUNCTION public.list_my_storage_paths() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.list_my_storage_paths() TO authenticated;
 
 -- Deleting an account cannot be undone, so a session alone is not enough. The caller
--- must have signed in with a password in the last five minutes and completed MFA if
--- enrolled. Files must already be gone, because removing rows here would leave the
+-- must have signed in within the last five minutes and completed MFA if enrolled. Files must already be gone, because removing rows here would leave the
 -- underlying objects in Storage.
 CREATE FUNCTION public.delete_my_account()
 RETURNS void
@@ -26,12 +25,7 @@ AS $$
 DECLARE
   uid uuid := (SELECT auth.uid());
 BEGIN
-  IF uid IS NULL OR NOT public.mfa_satisfied() OR NOT EXISTS (
-    SELECT 1
-    FROM jsonb_array_elements(COALESCE((SELECT auth.jwt()) -> 'amr', '[]'::jsonb)) AS entry
-    WHERE entry->>'method' = 'password'
-      AND (entry->>'timestamp')::bigint >= extract(epoch FROM now())::bigint - 300
-  ) THEN
+  IF uid IS NULL OR NOT public.mfa_satisfied() OR NOT private.has_recent_sign_in() THEN
     RAISE EXCEPTION 'A recent sign-in is required to delete an account' USING ERRCODE = '42501';
   END IF;
 

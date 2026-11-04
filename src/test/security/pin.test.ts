@@ -131,16 +131,19 @@ describe("server-side PIN", () => {
       });
     const now = () => Math.floor(Date.now() / 1000);
 
-    it("is refused without a recent password sign-in", async () => {
+    it("is refused without a recent sign-in", async () => {
       await setPin(db, RESET_USER, "454545");
-      await expect(reset()).rejects.toThrow(/recent password/);
-      await expect(reset(now() - 3600)).rejects.toThrow(/recent password/);
-      await expect(reset(now(), "otp")).rejects.toThrow(/recent password/);
+      await expect(reset()).rejects.toThrow(/recent sign-in/);
+      await expect(reset(now() - 3600)).rejects.toThrow(/recent sign-in/);
+      await expect(reset(now(), "otp")).rejects.toThrow(/recent sign-in/);
+      await expect(reset(now(), "recovery")).rejects.toThrow(/recent sign-in/);
       expect((await verify(db, RESET_USER, "454545")).ok).toBe(true);
     });
 
-    it("clears the PIN after a fresh password sign-in", async () => {
-      await reset(now());
+    it.each(["password", "oauth"])("clears the PIN after a fresh %s sign-in", async method => {
+      await db.query("DELETE FROM private.user_pins WHERE user_id = $1", [RESET_USER]);
+      await setPin(db, RESET_USER, "454545");
+      await reset(now(), method);
       const { rows } = await asUser(db, RESET_USER, tx =>
         tx.query<{ status: { has_pin: boolean } }>("SELECT public.pin_status() AS status"),
       );

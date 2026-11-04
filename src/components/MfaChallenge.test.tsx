@@ -63,7 +63,7 @@ describe("MfaChallenge", () => {
     vi.mocked(redeemRecoveryCode).mockRejectedValue(new Error("A recent password sign-in is required"));
     openRecovery();
     submitRecovery("ABCD");
-    expect(await screen.findByText(/sign in with your password again/)).toBeInTheDocument();
+    expect(await screen.findByText(/sign out and sign in again/)).toBeInTheDocument();
   });
 
   it("can go back to the authenticator", () => {

@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import { TreePine, Delete, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePinStatus, verifyPin, resetPinWithPassword } from "@/hooks/useUserSettings";
+import { usePinStatus, verifyPin, resetPinAfterSignIn, resetPinWithPassword } from "@/hooks/useUserSettings";
+import { confirmWithGoogle, hasRecentSignIn, usesPassword } from "@/lib/freshSignIn";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ export function PinLockScreen({ onUnlock }: Props) {
   const [resetting, setResetting] = useState(false);
   const [password, setPassword] = useState("");
   const { data: status } = usePinStatus();
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -56,6 +57,25 @@ export function PinLockScreen({ onUnlock }: Props) {
     } catch {
       setPin("");
       setError("We couldn't check your PIN. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleReset = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      if (hasRecentSignIn(session)) {
+        await resetPinAfterSignIn();
+        await qc.invalidateQueries({ queryKey: ["pin_status"] });
+        toast({ title: "PIN removed", description: "You can set a new PIN in Settings." });
+        onUnlock();
+      } else {
+        await confirmWithGoogle(window.location.pathname);
+      }
+    } catch {
+      setError("We couldn't confirm it's you. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +166,17 @@ export function PinLockScreen({ onUnlock }: Props) {
       </div>
 
       {/* Forgot PIN */}
-      {resetting ? (
+      {resetting && !usesPassword(user) ? (
+        <div className="mt-6 flex w-full max-w-[260px] flex-col gap-2">
+          <p className="text-center text-sm text-white/60">
+            {hasRecentSignIn(session) ? "You've confirmed it's you." : "Sign in with Google again to remove your PIN."}
+          </p>
+          <Button onClick={handleGoogleReset} disabled={loading}>{hasRecentSignIn(session) ? "Remove PIN" : "Continue With Google"}</Button>
+          <button type="button" className="text-sm text-white/40 hover:text-white/60 transition-colors" onClick={() => { setResetting(false); setError(""); }}>
+            Back to PIN
+          </button>
+        </div>
+      ) : resetting ? (
         <form onSubmit={handleResetPin} className="mt-6 flex w-full max-w-[260px] flex-col gap-2">
           <p className="text-center text-sm text-white/60">Enter your account password to remove your PIN.</p>
           <Input type="password" autoComplete="current-password" autoFocus required aria-label="Account password" value={password} onChange={e => setPassword(e.target.value)} />

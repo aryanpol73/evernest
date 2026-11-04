@@ -1,6 +1,6 @@
 -- SEC-11: one-time recovery codes for a lost authenticator.
--- A code bypasses MFA, so redeeming one still needs a fresh password sign-in. It
--- replaces the second factor, and never the first.
+-- A code bypasses MFA, so redeeming one still needs a fresh sign-in. It replaces the
+-- second factor, and never the first.
 
 CREATE TABLE private.mfa_recovery_codes (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -108,13 +108,8 @@ DECLARE
   so_far integer;
   new_lock timestamptz;
 BEGIN
-  IF uid IS NULL OR NOT EXISTS (
-    SELECT 1
-    FROM jsonb_array_elements(COALESCE((SELECT auth.jwt()) -> 'amr', '[]'::jsonb)) AS entry
-    WHERE entry->>'method' = 'password'
-      AND (entry->>'timestamp')::bigint >= extract(epoch FROM now())::bigint - 300
-  ) THEN
-    RAISE EXCEPTION 'A recent password sign-in is required' USING ERRCODE = '42501';
+  IF uid IS NULL OR NOT private.has_recent_sign_in() THEN
+    RAISE EXCEPTION 'A recent sign-in is required' USING ERRCODE = '42501';
   END IF;
 
   INSERT INTO private.mfa_recovery_attempts (user_id) VALUES (uid) ON CONFLICT (user_id) DO NOTHING;

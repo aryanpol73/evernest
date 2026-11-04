@@ -126,6 +126,23 @@ WHERE id = 'family-documents';
 CREATE SCHEMA private;
 REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
 
+-- A live session is not proof of who is using it, so sensitive actions need a sign-in
+-- from the last five minutes. Google accounts have no password, so oauth counts too.
+-- Reset links and one-time codes don't, because they only prove access to the inbox.
+CREATE FUNCTION private.has_recent_sign_in()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(COALESCE((SELECT auth.jwt()) -> 'amr', '[]'::jsonb)) AS entry
+    WHERE entry->>'method' IN ('password', 'oauth')
+      AND (entry->>'timestamp')::bigint >= extract(epoch FROM now())::bigint - 300
+  );
+$$;
+
 CREATE TABLE private.user_pins (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   pin_hash TEXT,
@@ -305,8 +322,7 @@ BEGIN
 END;
 $$;
 
--- Forgotten-PIN recovery. The caller must have just proven their password, shown
--- by a password entry under five minutes old in the JWT's amr claim.
+-- Forgotten-PIN recovery. The caller must have just signed in again.
 CREATE FUNCTION public.reset_pin_after_login()
 RETURNS void
 LANGUAGE plpgsql
@@ -314,13 +330,8 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM jsonb_array_elements(COALESCE((SELECT auth.jwt()) -> 'amr', '[]'::jsonb)) AS entry
-    WHERE entry->>'method' = 'password'
-      AND (entry->>'timestamp')::bigint >= extract(epoch FROM now())::bigint - 300
-  ) THEN
-    RAISE EXCEPTION 'A recent password sign-in is required' USING ERRCODE = '42501';
+  IF NOT private.has_recent_sign_in() THEN
+    RAISE EXCEPTION 'A recent sign-in is required' USING ERRCODE = '42501';
   END IF;
 
   DELETE FROM private.user_pins WHERE user_id = (SELECT auth.uid());

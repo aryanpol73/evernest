@@ -50,7 +50,7 @@ export function MfaChallenge() {
         setError("That recovery code didn't work.");
       }
     } catch {
-      setError("For your security, sign out and sign in with your password again, then use your recovery code.");
+      setError("For your security, sign out and sign in again, then use your recovery code.");
     } finally {
       setRecoveryCode("");
       setLoading(false);
