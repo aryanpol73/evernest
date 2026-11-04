@@ -42,6 +42,23 @@ export default function AuthPage() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast({ title: "Error", description: "Google sign-in failed. Please try again.", variant: "destructive" });
+      }
+      // If redirected, the browser is heading to Google — nothing else to do.
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Google sign-in failed.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
