@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TreePine, Shield, Loader2, Check, Delete } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { hashPin, useUpdateSettings } from "@/hooks/useUserSettings";
+import { useQueryClient } from "@tanstack/react-query";
+import { setPin as savePinOnServer } from "@/hooks/useUserSettings";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
@@ -13,8 +13,7 @@ interface Props {
 }
 
 export function PinSetupModal({ open, onComplete, onSkip }: Props) {
-  const { user } = useAuth();
-  const updateSettings = useUpdateSettings();
+  const qc = useQueryClient();
   const { toast } = useToast();
   const [stage, setStage] = useState<"prompt" | "enter" | "confirm" | "done">("prompt");
   const [pin, setPin] = useState("");
@@ -47,11 +46,10 @@ export function PinSetupModal({ open, onComplete, onSkip }: Props) {
   };
 
   const savePin = async (pinCode: string) => {
-    if (!user) return;
     setLoading(true);
     try {
-      const { hash, salt } = await hashPin(pinCode);
-      await updateSettings.mutateAsync({ id: user.id, pin_hash: hash, pin_salt: salt });
+      await savePinOnServer(pinCode);
+      await qc.invalidateQueries({ queryKey: ["pin_status"] });
       setStage("done");
       toast({ title: "PIN set! 🔒", description: "Your EverNest is now secured." });
     } catch (e: any) {

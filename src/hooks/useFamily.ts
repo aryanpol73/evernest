@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { buildStoragePath, documentTypeFor, validateDocumentFile } from "@/lib/documentFiles";
 
 export interface Family {
   id: string;
@@ -167,16 +168,24 @@ export function useAddDocument() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ file, metadata }: { file: File; metadata: Omit<Document, "id" | "created_at" | "updated_at" | "file_path" | "file_size" | "file_type"> }) => {
-      const filePath = `${metadata.family_id}/${metadata.member_id || "general"}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("family-documents").upload(filePath, file);
+      const problem = validateDocumentFile(file);
+      if (problem) throw new Error(problem);
+      const fileType = documentTypeFor(file.name);
+      const filePath = buildStoragePath(metadata.family_id, metadata.member_id, file.name);
+      const bucket = supabase.storage.from("family-documents");
+      const { error: uploadError } = await bucket.upload(filePath, file, { contentType: fileType });
       if (uploadError) throw uploadError;
       const { error } = await supabase.from("documents").insert({
         ...metadata,
         file_path: filePath,
         file_size: file.size,
-        file_type: file.type,
+        file_type: fileType,
       });
-      if (error) throw error;
+      if (error) {
+        // Leave no file behind that no document row points to.
+        await bucket.remove([filePath]);
+        throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["documents"] });

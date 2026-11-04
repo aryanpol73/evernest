@@ -4,11 +4,18 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export interface UserSettings {
   id: string;
-  pin_hash: string | null;
-  pin_salt: string | null;
   onboarding_completed: boolean;
-  pin_attempts: number;
-  pin_locked_until: string | null;
+}
+
+export interface PinStatus {
+  has_pin: boolean;
+  locked_until: string | null;
+}
+
+export interface PinResult {
+  ok: boolean;
+  locked_until: string | null;
+  attempts_remaining: number;
 }
 
 export function useUserSettings() {
@@ -19,11 +26,11 @@ export function useUserSettings() {
       if (!user) return null;
       const { data, error } = await supabase
         .from("user_settings")
-        .select("*")
+        .select("id, onboarding_completed")
         .eq("id", user.id)
         .maybeSingle();
       if (error) throw error;
-      return data as UserSettings | null;
+      return data;
     },
     enabled: !!user,
   });
@@ -40,18 +47,42 @@ export function useUpdateSettings() {
   });
 }
 
-// PIN hashing using Web Crypto API
-export async function hashPin(pin: string, salt?: string): Promise<{ hash: string; salt: string }> {
-  const s = salt || crypto.getRandomValues(new Uint8Array(16)).reduce((a, b) => a + b.toString(16).padStart(2, "0"), "");
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin + s);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-  return { hash, salt: s };
+export function usePinStatus() {
+  const { user } = useAuth();
+  return useQuery<PinStatus>({
+    queryKey: ["pin_status", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("pin_status");
+      if (error) throw error;
+      return data as unknown as PinStatus;
+    },
+    enabled: !!user,
+  });
 }
 
-export async function verifyPin(pin: string, storedHash: string, storedSalt: string): Promise<boolean> {
-  const { hash } = await hashPin(pin, storedSalt);
-  return hash === storedHash;
+// PIN hashing, comparison, and lockout all happen in the database.
+export async function verifyPin(pin: string): Promise<PinResult> {
+  const { data, error } = await supabase.rpc("verify_pin", { _pin: pin });
+  if (error) throw error;
+  return data as unknown as PinResult;
+}
+
+export async function setPin(newPin: string, currentPin?: string): Promise<PinResult> {
+  const { data, error } = await supabase.rpc("set_pin", { _new_pin: newPin, _current_pin: currentPin });
+  if (error) throw error;
+  return data as unknown as PinResult;
+}
+
+export async function removePin(currentPin: string): Promise<PinResult> {
+  const { data, error } = await supabase.rpc("remove_pin", { _current_pin: currentPin });
+  if (error) throw error;
+  return data as unknown as PinResult;
+}
+
+// Signing in again produces the fresh password proof the database requires.
+export async function resetPinWithPassword(email: string, password: string): Promise<void> {
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+  if (signInError) throw signInError;
+  const { error } = await supabase.rpc("reset_pin_after_login");
+  if (error) throw error;
 }

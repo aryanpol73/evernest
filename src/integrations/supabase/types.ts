@@ -193,30 +193,18 @@ export type Database = {
           created_at: string
           id: string
           onboarding_completed: boolean
-          pin_attempts: number
-          pin_hash: string | null
-          pin_locked_until: string | null
-          pin_salt: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id: string
           onboarding_completed?: boolean
-          pin_attempts?: number
-          pin_hash?: string | null
-          pin_locked_until?: string | null
-          pin_salt?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           onboarding_completed?: boolean
-          pin_attempts?: number
-          pin_hash?: string | null
-          pin_locked_until?: string | null
-          pin_salt?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -226,7 +214,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      owns_family: { Args: { _family_id: string }; Returns: boolean }
+      owns_storage_path: { Args: { _path: string }; Returns: boolean }
+      pin_status: { Args: never; Returns: Json }
+      remove_pin: { Args: { _current_pin: string }; Returns: Json }
+      reset_pin_after_login: { Args: never; Returns: undefined }
+      set_pin: { Args: { _current_pin?: string; _new_pin: string }; Returns: Json }
+      verify_pin: { Args: { _pin: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

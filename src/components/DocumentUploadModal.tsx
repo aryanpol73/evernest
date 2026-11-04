@@ -7,10 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FamilyMember } from "@/hooks/useFamily";
 import { Loader2, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ACCEPTED_FILE_TYPES, validateDocumentFile } from "@/lib/documentFiles";
 
 const CATEGORIES = ["Identity", "Medical", "Insurance", "Property", "Education", "Financial"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ACCEPTED_TYPES = ".pdf,.jpg,.jpeg,.png,.doc,.docx";
 
 interface Props {
   open: boolean;
@@ -33,8 +32,9 @@ export function DocumentUploadModal({ open, onOpenChange, onSubmit, members, loa
   const { toast } = useToast();
 
   const handleFile = (f: File) => {
-    if (f.size > MAX_FILE_SIZE) {
-      toast({ title: "File too large", description: "Maximum file size is 10MB.", variant: "destructive" });
+    const problem = validateDocumentFile(f);
+    if (problem) {
+      toast({ title: "File not accepted", description: problem, variant: "destructive" });
       return;
     }
     setFile(f);
@@ -93,7 +93,7 @@ export function DocumentUploadModal({ open, onOpenChange, onSubmit, members, loa
                 <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG, DOC, DOCX — Max 10MB</p>
               </>
             )}
-            <input ref={inputRef} type="file" className="hidden" accept={ACCEPTED_TYPES} onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            <input ref={inputRef} type="file" className="hidden" accept={ACCEPTED_FILE_TYPES} onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
 
           <div>

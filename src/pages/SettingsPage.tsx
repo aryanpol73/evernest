@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFamily, useUpdateFamily } from "@/hooks/useFamily";
-import { useUserSettings, useUpdateSettings, hashPin } from "@/hooks/useUserSettings";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePinStatus, setPin, removePin, type PinResult } from "@/hooks/useUserSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sun, Moon, Shield, Lock } from "lucide-react";
@@ -16,9 +17,10 @@ import { Switch } from "@/components/ui/switch";
 export default function SettingsPage() {
   const { user } = useAuth();
   const { data: family, isLoading } = useFamily();
-  const { data: settings } = useUserSettings();
+  const { data: pinStatus } = usePinStatus();
+  const hasPin = !!pinStatus?.has_pin;
   const updateFamily = useUpdateFamily();
-  const updateSettings = useUpdateSettings();
+  const qc = useQueryClient();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
@@ -29,6 +31,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
@@ -69,15 +72,24 @@ export default function SettingsPage() {
     } finally { setSaving(false); }
   };
 
+  const showPinFailure = (result: PinResult) => {
+    setCurrentPin("");
+    const description = result.locked_until
+      ? "Too many attempts. Try again in 30 minutes."
+      : `Wrong current PIN. ${result.attempts_remaining} attempts left.`;
+    toast({ title: "PIN not changed", description, variant: "destructive" });
+  };
+
   const handleSetPin = async () => {
     if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) { toast({ title: "Error", description: "PIN must be exactly 6 digits.", variant: "destructive" }); return; }
     if (newPin !== confirmPin) { toast({ title: "Error", description: "PINs do not match.", variant: "destructive" }); return; }
-    if (!user) return;
+    if (hasPin && currentPin.length !== 6) { toast({ title: "Error", description: "Enter your current PIN.", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      const { hash, salt } = await hashPin(newPin);
-      await updateSettings.mutateAsync({ id: user.id, pin_hash: hash, pin_salt: salt, pin_attempts: 0 });
-      setNewPin(""); setConfirmPin("");
+      const result = await setPin(newPin, hasPin ? currentPin : undefined);
+      if (!result.ok) { showPinFailure(result); return; }
+      setCurrentPin(""); setNewPin(""); setConfirmPin("");
+      await qc.invalidateQueries({ queryKey: ["pin_status"] });
       toast({ title: "PIN updated", description: "Your app PIN has been changed." });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -85,10 +97,13 @@ export default function SettingsPage() {
   };
 
   const handleRemovePin = async () => {
-    if (!user) return;
+    if (currentPin.length !== 6) { toast({ title: "Error", description: "Enter your current PIN.", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      await updateSettings.mutateAsync({ id: user.id, pin_hash: null as any, pin_salt: null as any });
+      const result = await removePin(currentPin);
+      if (!result.ok) { showPinFailure(result); return; }
+      setCurrentPin("");
+      await qc.invalidateQueries({ queryKey: ["pin_status"] });
       toast({ title: "PIN removed", description: "App PIN lock has been disabled." });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -142,15 +157,16 @@ export default function SettingsPage() {
               <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /><h3 className="font-semibold">App PIN Lock</h3></div>
                 <p className="text-sm text-muted-foreground">
-                  {settings?.pin_hash ? "Your app is protected with a PIN. You can change or remove it below." : "Set a 6-digit PIN to lock your app after inactivity."}
+                  {hasPin ? "Your app is protected with a PIN. You can change or remove it below." : "Set a 6-digit PIN to lock your app after inactivity."}
                 </p>
+                {hasPin && <div><Label>Current PIN</Label><Input type="password" maxLength={6} value={currentPin} onChange={e => setCurrentPin(e.target.value.replace(/\D/g, ""))} placeholder="••••••" /></div>}
                 <div><Label>New PIN (6 digits)</Label><Input type="password" maxLength={6} value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="••••••" /></div>
                 <div><Label>Confirm PIN</Label><Input type="password" maxLength={6} value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ""))} placeholder="••••••" /></div>
                 <div className="flex gap-2">
                   <Button onClick={handleSetPin} disabled={saving || newPin.length !== 6}>
-                    {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} {settings?.pin_hash ? "Change PIN" : "Set PIN"}
+                    {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} {hasPin ? "Change PIN" : "Set PIN"}
                   </Button>
-                  {settings?.pin_hash && (
+                  {hasPin && (
                     <Button variant="outline" onClick={handleRemovePin} disabled={saving}>Remove PIN</Button>
                   )}
                 </div>

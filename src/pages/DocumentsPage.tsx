@@ -8,10 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentUploadModal } from "@/components/DocumentUploadModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useFamily, useFamilyMembers, useDocuments, useAddDocument, useDeleteDocument } from "@/hooks/useFamily";
+import { useFamily, useFamilyMembers, useDocuments, useAddDocument, useDeleteDocument, type Document as VaultDocument } from "@/hooks/useFamily";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { previewKindFor, type PreviewKind } from "@/lib/documentFiles";
 
 const categories = ["All", "Identity", "Medical", "Insurance", "Property", "Education", "Financial"];
 
@@ -28,8 +29,7 @@ export default function DocumentsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; filePath: string } | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewName, setPreviewName] = useState("");
+  const [preview, setPreview] = useState<{ url: string; name: string; kind: PreviewKind } | null>(null);
 
   const filtered = docs?.filter(d => {
     if (activeCategory !== "All" && d.category !== activeCategory) return false;
@@ -60,11 +60,18 @@ export default function DocumentsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handlePreview = async (filePath: string, name: string) => {
-    const { data, error } = await supabase.storage.from("family-documents").download(filePath);
+  const handlePreview = async (doc: VaultDocument) => {
+    const kind = previewKindFor(doc.file_type);
+    if (!kind) { toast({ title: "Preview not available", description: "Download this file to open it." }); return; }
+    const { data, error } = await supabase.storage.from("family-documents").download(doc.file_path);
     if (error) { toast({ title: "Preview failed", description: error.message, variant: "destructive" }); return; }
-    setPreviewUrl(URL.createObjectURL(data));
-    setPreviewName(name);
+    // The type comes from the allowlist, never from the downloaded response.
+    setPreview({ url: URL.createObjectURL(new Blob([data], { type: doc.file_type })), name: doc.name, kind });
+  };
+
+  const closePreview = () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
   };
 
   return (
@@ -116,7 +123,7 @@ export default function DocumentsPage() {
                 </div>
               </div>
               <div className="flex gap-1 shrink-0">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreview(doc.file_path, doc.name)}><Eye className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreview(doc)}><Eye className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc.file_path, doc.name)}><Download className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
               </div>
@@ -128,10 +135,16 @@ export default function DocumentsPage() {
       <DocumentUploadModal open={uploadOpen} onOpenChange={setUploadOpen} onSubmit={handleUpload} members={members || []} loading={addDocument.isPending} />
       <DeleteConfirmDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)} onConfirm={() => { if (deleteTarget) deleteDocument.mutate(deleteTarget, { onSuccess: () => setDeleteTarget(null) }); }} title="Delete Document?" loading={deleteDocument.isPending} />
 
-      <Dialog open={!!previewUrl} onOpenChange={v => { if (!v) { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
+      <Dialog open={!!preview} onOpenChange={v => { if (!v) closePreview(); }}>
         <DialogContent className="max-w-3xl max-h-[80vh]">
-          <DialogHeader><DialogTitle>{previewName}</DialogTitle></DialogHeader>
-          {previewUrl && <div className="overflow-auto max-h-[65vh]"><iframe src={previewUrl} className="w-full h-[60vh] rounded border" /></div>}
+          <DialogHeader><DialogTitle>{preview?.name}</DialogTitle></DialogHeader>
+          {preview && (
+            <div className="overflow-auto max-h-[65vh]">
+              {preview.kind === "image"
+                ? <img src={preview.url} alt={preview.name} className="max-w-full mx-auto rounded border" />
+                : <iframe src={preview.url} title={preview.name} className="w-full h-[60vh] rounded border" />}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

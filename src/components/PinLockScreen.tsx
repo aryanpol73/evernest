@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { TreePine, Delete, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserSettings, verifyPin, useUpdateSettings } from "@/hooks/useUserSettings";
-import { supabase } from "@/integrations/supabase/client";
+import { usePinStatus, verifyPin, resetPinWithPassword } from "@/hooks/useUserSettings";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   onUnlock: () => void;
@@ -13,13 +15,16 @@ export function PinLockScreen({ onUnlock }: Props) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { data: settings } = useUserSettings();
-  const updateSettings = useUpdateSettings();
+  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [password, setPassword] = useState("");
+  const { data: status } = usePinStatus();
   const { user } = useAuth();
   const { toast } = useToast();
+  const qc = useQueryClient();
 
-  const MAX_ATTEMPTS = 5;
-  const isLocked = settings && settings.pin_locked_until && new Date(settings.pin_locked_until) > new Date();
+  const lockExpiry = lockedUntil ?? status?.locked_until;
+  const isLocked = !!lockExpiry && new Date(lockExpiry) > new Date();
 
   const handleDigit = useCallback((digit: string) => {
     if (pin.length >= 6 || isLocked) return;
@@ -33,27 +38,43 @@ export function PinLockScreen({ onUnlock }: Props) {
   }, [pin, isLocked]);
 
   const verifyPinCode = async (code: string) => {
-    if (!settings?.pin_hash || !settings.pin_salt || !user) return;
     setLoading(true);
     try {
-      const valid = await verifyPin(code, settings.pin_hash, settings.pin_salt);
-      if (valid) {
-        await updateSettings.mutateAsync({ id: user.id, pin_attempts: 0 });
+      const result = await verifyPin(code);
+      if (result.ok) {
         onUnlock();
-      } else {
-        const attempts = (settings.pin_attempts || 0) + 1;
-        if (attempts >= MAX_ATTEMPTS) {
-          const lockedUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-          await updateSettings.mutateAsync({ id: user.id, pin_attempts: attempts, pin_locked_until: lockedUntil });
-          setError("Too many attempts. Try again in 30 minutes.");
-          toast({ title: "Account Locked", description: "Too many wrong PIN attempts.", variant: "destructive" });
-        } else {
-          await updateSettings.mutateAsync({ id: user.id, pin_attempts: attempts });
-          setError(`Wrong PIN. ${MAX_ATTEMPTS - attempts} attempts left.`);
-        }
-        setPin("");
+        return;
       }
+      setPin("");
+      if (result.locked_until) {
+        setLockedUntil(result.locked_until);
+        setError("Too many attempts. Try again in 30 minutes.");
+        toast({ title: "Account Locked", description: "Too many wrong PIN attempts.", variant: "destructive" });
+      } else {
+        setError(`Wrong PIN. ${result.attempts_remaining} attempts left.`);
+      }
+    } catch {
+      setPin("");
+      setError("We couldn't check your PIN. Please try again.");
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.email) return;
+    setLoading(true);
+    setError("");
+    try {
+      await resetPinWithPassword(user.email, password);
+      await qc.invalidateQueries({ queryKey: ["pin_status"] });
+      toast({ title: "PIN removed", description: "You can set a new PIN in Settings." });
+      onUnlock();
+    } catch {
+      setError("We couldn't verify that password. Please try again.");
+    } finally {
+      setPassword("");
       setLoading(false);
     }
   };
@@ -65,13 +86,14 @@ export function PinLockScreen({ onUnlock }: Props) {
 
   // Keyboard support
   useEffect(() => {
+    if (resetting) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key >= "0" && e.key <= "9") handleDigit(e.key);
       else if (e.key === "Backspace") handleDelete();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleDigit]);
+  }, [handleDigit, resetting]);
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center" style={{ background: "#1A1A2E" }}>
@@ -124,16 +146,20 @@ export function PinLockScreen({ onUnlock }: Props) {
       </div>
 
       {/* Forgot PIN */}
-      <button
-        className="mt-8 text-sm text-white/40 hover:text-white/60 transition-colors"
-        onClick={async () => {
-          if (!user?.email) return;
-          await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: window.location.origin + "/reset-password" });
-          toast({ title: "Reset link sent", description: "Check your email to reset your PIN." });
-        }}
-      >
-        Forgot PIN?
-      </button>
+      {resetting ? (
+        <form onSubmit={handleResetPin} className="mt-6 flex w-full max-w-[260px] flex-col gap-2">
+          <p className="text-center text-sm text-white/60">Enter your account password to remove your PIN.</p>
+          <Input type="password" autoComplete="current-password" autoFocus required aria-label="Account password" value={password} onChange={e => setPassword(e.target.value)} />
+          <Button type="submit" disabled={loading || !password}>Remove PIN</Button>
+          <button type="button" className="text-sm text-white/40 hover:text-white/60 transition-colors" onClick={() => { setResetting(false); setPassword(""); setError(""); }}>
+            Back to PIN
+          </button>
+        </form>
+      ) : (
+        <button className="mt-8 text-sm text-white/40 hover:text-white/60 transition-colors" onClick={() => { setResetting(true); setError(""); }}>
+          Forgot PIN?
+        </button>
+      )}
     </div>
   );
 }

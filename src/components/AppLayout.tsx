@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinLockScreen } from "@/components/PinLockScreen";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { usePinStatus, useUserSettings } from "@/hooks/useUserSettings";
 import { useFamily } from "@/hooks/useFamily";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -18,7 +18,9 @@ const INACTIVITY_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 export default function AppLayout() {
   const { user } = useAuth();
   const { data: settings, isLoading: settingsLoading } = useUserSettings();
+  const { data: pinStatus, isLoading: pinLoading, isError: pinError, refetch: refetchPinStatus } = usePinStatus();
   const { data: family, isLoading: familyLoading } = useFamily();
+  const hasPin = !!pinStatus?.has_pin;
   const initials = user?.user_metadata?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "U";
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -26,18 +28,20 @@ export default function AppLayout() {
   const [pinLocked, setPinLocked] = useState(false);
   const [welcomeBanner, setWelcomeBanner] = useState(false);
   const [flowDone, setFlowDone] = useState(false);
+  const initialLockChecked = useRef(false);
 
   // Determine if onboarding/PIN setup needed
   useEffect(() => {
-    if (settingsLoading || !settings) return;
+    if (settingsLoading || pinLoading || !settings) return;
     if (!settings.onboarding_completed) {
       setShowOnboarding(true);
-    } else if (settings.pin_hash) {
-      // Has PIN, check if we should lock (on initial load)
+    } else if (hasPin && !initialLockChecked.current) {
+      // Lock on initial load only, so setting a PIN mid-session doesn't lock the user out.
       setPinLocked(true);
     }
+    initialLockChecked.current = true;
     setFlowDone(true);
-  }, [settings, settingsLoading]);
+  }, [settings, settingsLoading, pinLoading, hasPin]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -55,7 +59,7 @@ export default function AppLayout() {
 
   // Inactivity timer for PIN lock
   useEffect(() => {
-    if (!settings?.pin_hash || !flowDone) return;
+    if (!hasPin || !flowDone) return;
     let timer: ReturnType<typeof setTimeout>;
 
     const resetTimer = () => {
@@ -78,10 +82,10 @@ export default function AppLayout() {
       events.forEach(e => document.removeEventListener(e, resetTimer));
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [settings?.pin_hash, flowDone]);
+  }, [hasPin, flowDone]);
 
   // Show loading while settings are loading
-  if (settingsLoading || familyLoading) {
+  if (settingsLoading || familyLoading || pinLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex items-center gap-3">
@@ -92,8 +96,18 @@ export default function AppLayout() {
     );
   }
 
+  // Without a PIN status the lock can't be evaluated, so keep the app closed.
+  if (pinError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background p-6 text-center">
+        <p className="text-muted-foreground">We couldn't check your security settings.</p>
+        <Button onClick={() => refetchPinStatus()}>Try Again</Button>
+      </div>
+    );
+  }
+
   // PIN lock screen
-  if (pinLocked && settings?.pin_hash) {
+  if (pinLocked && hasPin) {
     return <PinLockScreen onUnlock={() => setPinLocked(false)} />;
   }
 
