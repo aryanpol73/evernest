@@ -25,9 +25,35 @@ export type Database = {
           target_id: string | null
           target_name: string | null
         }
-        Insert: never
-        Update: never
-        Relationships: []
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          family_id: string
+          id?: never
+          source?: string
+          target_id?: string | null
+          target_name?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          family_id?: string
+          id?: never
+          source?: string
+          target_id?: string | null
+          target_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_events_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -60,7 +86,7 @@ export type Database = {
           name: string
           tags?: string[] | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           category?: string
@@ -76,7 +102,7 @@ export type Database = {
           name?: string
           tags?: string[] | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -87,11 +113,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "documents_member_id_fkey"
-            columns: ["member_id"]
+            foreignKeyName: "documents_member_same_family"
+            columns: ["member_id", "family_id"]
             isOneToOne: false
             referencedRelation: "family_members"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "family_id"]
           },
         ]
       }
@@ -130,10 +156,41 @@ export type Database = {
           invited_by: string | null
           revoked_at: string | null
           role: string
+          token_hash: string
         }
-        Insert: never
-        Update: never
-        Relationships: []
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          family_id: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          family_id?: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_invites_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       family_members: {
         Row: {
@@ -162,7 +219,7 @@ export type Database = {
           phone?: string | null
           relation?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           blood_group?: string | null
@@ -176,7 +233,7 @@ export type Database = {
           phone?: string | null
           relation?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -187,11 +244,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "family_members_parent_member_id_fkey"
-            columns: ["parent_member_id"]
+            foreignKeyName: "family_members_parent_same_family"
+            columns: ["parent_member_id", "family_id"]
             isOneToOne: false
             referencedRelation: "family_members"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "family_id"]
           },
         ]
       }
@@ -202,8 +259,18 @@ export type Database = {
           role: string
           user_id: string
         }
-        Insert: never
-        Update: never
+        Insert: {
+          created_at?: string
+          family_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          role?: string
+          user_id?: string
+        }
         Relationships: [
           {
             foreignKeyName: "family_memberships_family_id_fkey"
@@ -267,29 +334,51 @@ export type Database = {
       accept_family_invite: { Args: { _token: string }; Returns: string }
       can_edit_family: { Args: { _family_id: string }; Returns: boolean }
       can_read_family: { Args: { _family_id: string }; Returns: boolean }
-      create_family_invite: { Args: { _email: string; _family_id: string; _role: string }; Returns: string }
-      family_role: { Args: { _family_id: string }; Returns: string | null }
+      create_family_invite: {
+        Args: { _email: string; _family_id: string; _role: string }
+        Returns: string
+      }
+      delete_my_account: { Args: never; Returns: undefined }
+      family_role: { Args: { _family_id: string }; Returns: string }
       generate_mfa_recovery_codes: { Args: never; Returns: string[] }
       list_family_access: {
         Args: { _family_id: string }
-        Returns: { email: string; full_name: string | null; joined_at: string; role: string; user_id: string }[]
+        Returns: {
+          email: string
+          full_name: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
       }
-      mfa_recovery_codes_remaining: { Args: never; Returns: number }
-      preview_family_invite: { Args: { _token: string }; Returns: Json }
-      redeem_mfa_recovery_code: { Args: { _code: string }; Returns: Json }
-      remove_family_access: { Args: { _family_id: string; _user_id: string }; Returns: undefined }
-      revoke_family_invite: { Args: { _invite_id: string }; Returns: undefined }
-      set_family_role: { Args: { _family_id: string; _role: string; _user_id: string }; Returns: undefined }
-      storage_path_role: { Args: { _path: string }; Returns: string | null }
-      delete_my_account: { Args: never; Returns: undefined }
       list_my_storage_paths: { Args: never; Returns: string[] }
+      mfa_recovery_codes_remaining: { Args: never; Returns: number }
+      mfa_satisfied: { Args: never; Returns: boolean }
       owns_family: { Args: { _family_id: string }; Returns: boolean }
       owns_storage_path: { Args: { _path: string }; Returns: boolean }
       pin_status: { Args: never; Returns: Json }
-      record_document_access: { Args: { _action: string; _document_id: string }; Returns: undefined }
+      preview_family_invite: { Args: { _token: string }; Returns: Json }
+      record_document_access: {
+        Args: { _action: string; _document_id: string }
+        Returns: undefined
+      }
+      redeem_mfa_recovery_code: { Args: { _code: string }; Returns: Json }
+      remove_family_access: {
+        Args: { _family_id: string; _user_id: string }
+        Returns: undefined
+      }
       remove_pin: { Args: { _current_pin: string }; Returns: Json }
       reset_pin_after_login: { Args: never; Returns: undefined }
-      set_pin: { Args: { _current_pin?: string; _new_pin: string }; Returns: Json }
+      revoke_family_invite: { Args: { _invite_id: string }; Returns: undefined }
+      set_family_role: {
+        Args: { _family_id: string; _role: string; _user_id: string }
+        Returns: undefined
+      }
+      set_pin: {
+        Args: { _current_pin?: string; _new_pin: string }
+        Returns: Json
+      }
+      storage_path_role: { Args: { _path: string }; Returns: string }
       verify_pin: { Args: { _pin: string }; Returns: Json }
     }
     Enums: {

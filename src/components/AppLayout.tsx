@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bell, TreePine, Home, FileText, Siren, Settings } from "lucide-react";
+import { Bell, TreePine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { BottomNav } from "@/components/BottomNav";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinLockScreen } from "@/components/PinLockScreen";
@@ -128,6 +130,7 @@ export default function AppLayout() {
             <div className="flex items-center gap-3">
               {family?.role === "viewer" && <span className="text-xs text-muted-foreground">View only</span>}
               <FamilySwitcher />
+              <ThemeToggle />
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-4 w-4" />
               </Button>
@@ -145,46 +148,17 @@ export default function AppLayout() {
             </div>
           )}
 
-          <main className="flex-1 p-4 md:p-6 overflow-auto pb-20 md:pb-6">
+          <main className="flex-1 p-4 md:p-6 overflow-auto pb-24 lg:pb-6">
             <Outlet />
           </main>
         </div>
       </div>
-      <MobileTabBar />
+      <BottomNav />
 
       {/* Onboarding */}
       <OnboardingModal open={showOnboarding} onComplete={handleOnboardingComplete} />
       {/* PIN Setup */}
       <PinSetupModal open={showPinSetup} onComplete={handlePinSetupComplete} onSkip={handlePinSkip} />
     </SidebarProvider>
-  );
-}
-
-const mobileItems = [
-  { icon: Home, label: "Home", path: "/dashboard" },
-  { icon: TreePine, label: "Tree", path: "/family-tree" },
-  { icon: FileText, label: "Docs", path: "/documents" },
-  { icon: Siren, label: "SOS", path: "/emergency" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-];
-
-function MobileTabBar() {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t bg-card">
-      <div className="flex justify-around py-2">
-        {mobileItems.map(item => {
-          const active = pathname.startsWith(item.path);
-          return (
-            <button key={item.path} onClick={() => navigate(item.path)} className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}>
-              <item.icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
