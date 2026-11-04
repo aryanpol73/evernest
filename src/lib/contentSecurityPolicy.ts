@@ -19,8 +19,6 @@ export function buildContentSecurityPolicy(supabaseUrl: string | undefined): str
     // injects same-origin analytics that report the full URL, including the fragment
     // where password reset links carry login tokens.
     "connect-src": [new URL(supabaseUrl).origin],
-    // PDF previews.
-    "frame-src": ["blob:"],
     "worker-src": ["'self'"],
     "manifest-src": ["'self'"],
     "object-src": ["'none'"],

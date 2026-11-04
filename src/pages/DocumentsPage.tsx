@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentUploadModal, type DocumentFormData } from "@/components/DocumentUploadModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { PdfPreview } from "@/components/PdfPreview";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCanEdit, useFamily, useFamilyMembers, useDocuments, useAddDocument, useDeleteDocument, type Document as VaultDocument } from "@/hooks/useFamily";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +31,7 @@ export default function DocumentsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; filePath: string } | null>(null);
-  const [preview, setPreview] = useState<{ url: string; name: string; kind: PreviewKind } | null>(null);
+  const [preview, setPreview] = useState<{ file: Blob; url: string; name: string; kind: PreviewKind } | null>(null);
 
   const filtered = docs?.filter(d => {
     if (activeCategory !== "All" && d.category !== activeCategory) return false;
@@ -67,7 +68,8 @@ export default function DocumentsPage() {
     try {
       const data = await fetchDocumentForPreview(doc);
       // The type comes from the allowlist, never from the downloaded response.
-      setPreview({ url: URL.createObjectURL(new Blob([data], { type: doc.file_type ?? undefined })), name: doc.name, kind });
+      const file = new Blob([data], { type: doc.file_type ?? undefined });
+      setPreview({ file, url: URL.createObjectURL(file), name: doc.name, kind });
     } catch (e) {
       toast({ title: "Preview failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
     }
@@ -146,7 +148,7 @@ export default function DocumentsPage() {
             <div className="overflow-auto max-h-[65vh]">
               {preview.kind === "image"
                 ? <img src={preview.url} alt={preview.name} className="max-w-full mx-auto rounded border" />
-                : <iframe src={preview.url} title={preview.name} className="w-full h-[60vh] rounded border" />}
+                : <PdfPreview file={preview.file} />}
             </div>
           )}
         </DialogContent>
