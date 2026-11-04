@@ -1,8 +1,25 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { buildContentSecurityPolicy } from "./src/lib/contentSecurityPolicy";
+
+// Production only, because the dev server relies on inline scripts.
+function securityMetaTags(supabaseUrl: string | undefined): Plugin {
+  return {
+    name: "evernest-security-meta-tags",
+    apply: "build",
+    transformIndexHtml: () => [
+      {
+        tag: "meta",
+        attrs: { "http-equiv": "Content-Security-Policy", content: buildContentSecurityPolicy(supabaseUrl) },
+        injectTo: "head-prepend",
+      },
+      { tag: "meta", attrs: { name: "referrer", content: "no-referrer" }, injectTo: "head-prepend" },
+    ],
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -16,6 +33,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    securityMetaTags(loadEnv(mode, process.cwd(), "VITE_").VITE_SUPABASE_URL),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.png", "icons/icon-192x192.png", "icons/icon-512x512.png"],

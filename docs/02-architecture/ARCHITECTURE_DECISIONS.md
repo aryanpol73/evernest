@@ -70,3 +70,15 @@ Confirming a password in Settings uses a temporary client (`src/lib/reauth.ts`),
 Making reads verifiable means removing direct Storage reads and issuing signed URLs through an Edge Function that logs first (SEC-12). Until then, Supabase's Storage logs are the only server record of reads.
 
 Event rows store document and member names, so a deleted document stays identifiable. They are deleted with the family, which keeps account deletion complete. There is no retention limit yet, so one should be set as part of SEC-9.
+
+## ADR-008: Content-Security-Policy is built into the HTML
+
+**Status:** Accepted
+
+A Vite plugin adds the policy as a meta tag to production builds, so it applies on any host. The policy comes from `src/lib/contentSecurityPolicy.ts`, and the build fails if the Supabase URL is missing or not `https`. It is left out of the dev server, which needs inline scripts.
+
+`script-src` is `'self'` with no exceptions, and it must stay that way, because the session token in `localStorage` depends on it (ADR-003). `style-src` allows `'unsafe-inline'` because Radix and `chart.tsx` inject style elements. That lets injected CSS run, which is a much smaller risk than script.
+
+New external services must be added to the policy deliberately, and the app will fail visibly until they are. Realtime is not allowed, so using Supabase Realtime means adding the project's `wss://` origin to `connect-src`.
+
+A meta tag cannot set `frame-ancestors`, so clickjacking protection needs a host header (SEC-13).

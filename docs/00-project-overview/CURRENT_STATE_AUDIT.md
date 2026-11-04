@@ -50,7 +50,7 @@ The master context indexes nine documents under `docs/`. None were in the reposi
 | F-7 | Medium | "Forgot PIN" linked to a `/reset-password` route that does not exist | Fixed in repo by SEC-2 |
 | F-8 | Medium | Session token is stored in `localStorage`, so the PIN lock is a device convenience and not a data boundary | Open, documented in ADR-003 |
 | F-9 | Medium | No audit log of document access | Fixed in repo by SEC-6, for changes and PIN events. Reads are app-reported, not verified (SEC-12) |
-| F-10 | Medium | No Content-Security-Policy | Open (SEC-7) |
+| F-10 | Medium | No Content-Security-Policy | Fixed in repo by SEC-7. `frame-ancestors` and other host headers are open (SEC-13) |
 | F-11 | Medium | 19 high-severity dependency advisories; `package-lock.json` drift (drift fixed, advisories remain) | Open (SEC-4) |
 | F-12 | Low | `.env` is committed to a public repo. It holds only the public `anon` key, so this is not a leak, but RLS is the only barrier to data | Accepted; kept because Lovable may rely on it |
 
