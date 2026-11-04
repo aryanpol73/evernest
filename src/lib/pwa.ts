@@ -47,7 +47,8 @@ async function unregisterAppServiceWorker(): Promise<void> {
       registrations
         .filter((registration) => {
           try {
-            return new URL(registration.scriptURL).pathname === "/sw.js";
+            const scriptURL = registration.active?.scriptURL ?? registration.installing?.scriptURL ?? registration.waiting?.scriptURL;
+            return scriptURL !== undefined && new URL(scriptURL).pathname === "/sw.js";
           } catch {
             return false;
           }
