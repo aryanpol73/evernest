@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocumentUploadModal } from "@/components/DocumentUploadModal";
-import { useFamilyMembers, useUpdateMember, useDocuments, useFamily, useAddDocument, useDeleteDocument, FamilyMember } from "@/hooks/useFamily";
+import { useFamilyMembers, useUpdateMember, useDocuments, useFamily, useAddDocument, useDeleteDocument, FamilyMember, type Document as VaultDocument } from "@/hooks/useFamily";
+import { saveDocument } from "@/lib/documentAccess";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Download, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -85,12 +85,12 @@ export default function MemberProfilePage() {
     }, { onSuccess: () => setUploadOpen(false) });
   };
 
-  const handleDownload = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage.from("family-documents").download(filePath);
-    if (error) { toast({ title: "Download failed", description: error.message, variant: "destructive" }); return; }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement("a"); a.href = url; a.download = fileName; a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async (doc: VaultDocument) => {
+    try {
+      await saveDocument(doc);
+    } catch (e) {
+      toast({ title: "Download failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
+    }
   };
 
   if (isLoading) return <div className="space-y-4 animate-fade-in"><Skeleton className="h-8 w-48" /><Skeleton className="h-64" /></div>;
@@ -155,7 +155,7 @@ export default function MemberProfilePage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc.file_path, doc.name)}><Download className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}><Download className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteDoc({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>

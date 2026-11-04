@@ -88,8 +88,8 @@ All detailed engineering blueprints reside in the `docs/` directory:
 ## 5. Current Project Status & Immediate Next Action
 
 * **Current Active Phase:** Security hardening, ahead of feature work.
-* **Completed:** `TASK-0.1` audit, and `SEC-0` to `SEC-3` and `SEC-5` in the repository. These are **not yet released**, so see the release steps at the top of `docs/07-implementation/IMPLEMENTATION_TASKS.md`.
-* **Immediate Next Task:** Release the security fixes, then `SEC-6` (audit log).
+* **Completed:** `TASK-0.1` audit, and `SEC-0` to `SEC-3`, `SEC-5`, and `SEC-6` in the repository. These are **not yet released**, so see the release steps at the top of `docs/07-implementation/IMPLEMENTATION_TASKS.md`.
+* **Immediate Next Task:** Release the security fixes, then `SEC-7` (Content-Security-Policy and security headers).
 * **Owner decisions pending:** landing page claims (`SEC-8`) and the document encryption model (ADR-002).
 
 ### Documentation gap
@@ -107,5 +107,6 @@ The others are missing. Do not assume their contents. `SEC-*` task IDs are recon
 * Family data access must be enforced in Postgres. Add tests in `src/test/security/` for every new table or policy, including an attempt from a second family.
 * In RLS policies, never reference a column by bare name inside a subquery. Pass it to a function or qualify it. This is what caused finding F-0.
 * Every new family table needs the restrictive `require_mfa` policy (ADR-006).
+* Read documents through `src/lib/documentAccess.ts`, so reads reach the audit log.
 * Treat stored files as untrusted. Render only types allowed by `previewKindFor` in `src/lib/documentFiles.ts`.
 * Never add a `service_role` key or other secret to `.env`, because this repository is public.

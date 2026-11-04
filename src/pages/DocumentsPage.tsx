@@ -10,9 +10,9 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useFamily, useFamilyMembers, useDocuments, useAddDocument, useDeleteDocument, type Document as VaultDocument } from "@/hooks/useFamily";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { previewKindFor, type PreviewKind } from "@/lib/documentFiles";
+import { fetchDocumentForPreview, saveDocument } from "@/lib/documentAccess";
 
 const categories = ["All", "Identity", "Medical", "Insurance", "Property", "Education", "Financial"];
 
@@ -52,21 +52,24 @@ export default function DocumentsPage() {
     }, { onSuccess: () => setUploadOpen(false) });
   };
 
-  const handleDownload = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage.from("family-documents").download(filePath);
-    if (error) { toast({ title: "Download failed", description: error.message, variant: "destructive" }); return; }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement("a"); a.href = url; a.download = fileName; a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async (doc: VaultDocument) => {
+    try {
+      await saveDocument(doc);
+    } catch (e) {
+      toast({ title: "Download failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
+    }
   };
 
   const handlePreview = async (doc: VaultDocument) => {
     const kind = previewKindFor(doc.file_type);
     if (!kind) { toast({ title: "Preview not available", description: "Download this file to open it." }); return; }
-    const { data, error } = await supabase.storage.from("family-documents").download(doc.file_path);
-    if (error) { toast({ title: "Preview failed", description: error.message, variant: "destructive" }); return; }
-    // The type comes from the allowlist, never from the downloaded response.
-    setPreview({ url: URL.createObjectURL(new Blob([data], { type: doc.file_type })), name: doc.name, kind });
+    try {
+      const data = await fetchDocumentForPreview(doc);
+      // The type comes from the allowlist, never from the downloaded response.
+      setPreview({ url: URL.createObjectURL(new Blob([data], { type: doc.file_type })), name: doc.name, kind });
+    } catch (e) {
+      toast({ title: "Preview failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
+    }
   };
 
   const closePreview = () => {
@@ -124,7 +127,7 @@ export default function DocumentsPage() {
               </div>
               <div className="flex gap-1 shrink-0">
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreview(doc)}><Eye className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc.file_path, doc.name)}><Download className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}><Download className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: doc.id, filePath: doc.file_path })}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>

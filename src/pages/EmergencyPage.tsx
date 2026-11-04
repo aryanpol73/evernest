@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFamilyMembers, useDocuments } from "@/hooks/useFamily";
-import { supabase } from "@/integrations/supabase/client";
+import { useFamilyMembers, useDocuments, type Document as VaultDocument } from "@/hooks/useFamily";
+import { saveDocument } from "@/lib/documentAccess";
 import { useToast } from "@/hooks/use-toast";
 
 export default function EmergencyPage() {
@@ -19,12 +19,12 @@ export default function EmergencyPage() {
   const missingBlood = members?.filter(m => !m.blood_group) || [];
   const missingPhone = members?.filter(m => !m.phone) || [];
 
-  const handleDownload = async (filePath: string, name: string) => {
-    const { data, error } = await supabase.storage.from("family-documents").download(filePath);
-    if (error) { toast({ title: "Download failed", description: error.message, variant: "destructive" }); return; }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement("a"); a.href = url; a.download = name; a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async (doc: VaultDocument) => {
+    try {
+      await saveDocument(doc);
+    } catch (e) {
+      toast({ title: "Download failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
+    }
   };
 
   return (
@@ -124,7 +124,7 @@ export default function EmergencyPage() {
                       <p className="text-sm font-medium truncate">{d.name}</p>
                       <p className="text-xs text-muted-foreground">{d.category}</p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleDownload(d.file_path, d.name)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleDownload(d)}>
                       <Download className="h-4 w-4" />
                     </Button>
                   </div>

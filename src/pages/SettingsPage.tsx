@@ -14,6 +14,7 @@ import { Loader2, Sun, Moon, Shield, Lock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { MfaSettings } from "@/components/MfaSettings";
+import { ActivityLog } from "@/components/ActivityLog";
 import { validateNewPassword } from "@/lib/passwordPolicy";
 import { verifyCurrentPassword } from "@/lib/reauth";
 
@@ -44,7 +45,7 @@ export default function SettingsPage() {
     setFamilyInitialized(true);
   }
 
-  const tabs = ["Profile", "Workspace", "Security", "Appearance"];
+  const tabs = ["Profile", "Workspace", "Security", "Activity", "Appearance"];
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -186,6 +187,8 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          {activeTab === "Activity" && <ActivityLog />}
 
           {activeTab === "Appearance" && (
             <div className="max-w-lg rounded-lg border bg-card p-6 shadow-sm space-y-4">

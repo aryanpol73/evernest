@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          family_id: string
+          id: number
+          source: string
+          target_id: string | null
+          target_name: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       documents: {
         Row: {
           category: string
@@ -217,6 +232,7 @@ export type Database = {
       owns_family: { Args: { _family_id: string }; Returns: boolean }
       owns_storage_path: { Args: { _path: string }; Returns: boolean }
       pin_status: { Args: never; Returns: Json }
+      record_document_access: { Args: { _action: string; _document_id: string }; Returns: undefined }
       remove_pin: { Args: { _current_pin: string }; Returns: Json }
       reset_pin_after_login: { Args: never; Returns: undefined }
       set_pin: { Args: { _current_pin?: string; _new_pin: string }; Returns: Json }

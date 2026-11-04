@@ -57,3 +57,16 @@ Confirming a password in Settings uses a temporary client (`src/lib/reauth.ts`),
 - **Lost devices:** Supabase has no built-in recovery codes. Someone who loses their authenticator needs an operator to remove the factor, and that process must verify identity carefully, because it bypasses MFA (SEC-11).
 - **PIN functions at `aal1`:** someone with only the password can set or clear the PIN. They still cannot read family data.
 - **Current password check is client-side:** a stolen session can call Supabase Auth directly to change the password without it. Supabase's "secure password change" setting would close this, but needs a reauthentication email flow first.
+
+## ADR-007: Audit log trust levels
+
+**Status:** Accepted
+
+`public.audit_events` is append-only for clients: they have `SELECT` only, and writes come from triggers or `record_document_access`. Each row has a `source`:
+
+- `server`: document, member, and PIN changes, written by database triggers. Clients cannot skip or forge these.
+- `client`: views and downloads, reported by the app after a read succeeds. Files are read directly from Storage, so a stolen token can read a file without producing a row. **Do not describe this log as a complete record of who read a document.** A logging failure does not block the read, because the emergency page must keep working.
+
+Making reads verifiable means removing direct Storage reads and issuing signed URLs through an Edge Function that logs first (SEC-12). Until then, Supabase's Storage logs are the only server record of reads.
+
+Event rows store document and member names, so a deleted document stays identifiable. They are deleted with the family, which keeps account deletion complete. There is no retention limit yet, so one should be set as part of SEC-9.
