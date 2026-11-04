@@ -20,12 +20,12 @@ describe("buildContentSecurityPolicy", () => {
   });
 
   it("limits where data can be sent", () => {
-    expect(directive("connect-src")).toEqual(["'self'", SUPABASE_URL]);
+    expect(directive("connect-src")).toEqual([SUPABASE_URL]);
     expect(directive("form-action")).toEqual(["'self'"]);
   });
 
   it("reduces the Supabase URL to its origin", () => {
-    expect(buildContentSecurityPolicy(`${SUPABASE_URL}/rest/v1`)).toContain(`connect-src 'self' ${SUPABASE_URL};`);
+    expect(buildContentSecurityPolicy(`${SUPABASE_URL}/rest/v1`)).toContain(`connect-src ${SUPABASE_URL};`);
   });
 
   it("loads nothing from third parties except Supabase", () => {

@@ -172,3 +172,13 @@ Account deletion, recovery codes, and Forgot PIN need proof of a sign-in in the 
 Google-only accounts have no password, so they confirm by signing in with Google again (`src/lib/freshSignIn.ts`), and the Change Password card is hidden. Unlike the password flows, this replaces the main session, so a user with MFA passes the MFA screen again on the way back. `hasRecentSignIn` only decides what to show, and the server re-checks the signed token.
 
 **To confirm live:** that Lovable's flow produces an `oauth` entry in `amr`. If it doesn't, Google users can't delete accounts or use recovery codes, and the check needs adjusting.
+
+## ADR-015: Lovable's injected scripts
+
+**Status:** Accepted
+
+Lovable's hosting adds scripts to the published page that are not in this repository: `/~flock.js` (visitor analytics), `/__l5e/events.*.js` (event autocapture, with an unused session replay option), and the badge. `/~flock.js` reports `location.href`, fragment included, and its masking only covers JSON fields named like `token`, so a token inside a URL is not masked. Password reset links carry login tokens in the fragment.
+
+`connect-src` therefore omits `'self'`, which stops both scripts sending anything. The app makes no same-origin requests of its own. Lovable's Analytics view will show no new data as a result, and Visitor analytics should be turned off too.
+
+**Remaining risk:** these scripts still run in the page, because they are same-origin and allowed by `script-src 'self'`. A script on the page can read what the page shows, and the session token. Lovable already operates the database and hosting, so this adds no new party, but it limits what "only you can read this" can honestly mean while hosted here. Check for new injected scripts after any change to Lovable's platform.

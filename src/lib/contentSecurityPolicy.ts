@@ -15,7 +15,10 @@ export function buildContentSecurityPolicy(supabaseUrl: string | undefined): str
     "font-src": ["'self'"],
     // blob: is document previews, and data: is the MFA QR code.
     "img-src": ["'self'", "data:", "blob:"],
-    "connect-src": ["'self'", new URL(supabaseUrl).origin],
+    // Not 'self', on purpose. The app only talks to Supabase, and Lovable's hosting
+    // injects same-origin analytics that report the full URL, including the fragment
+    // where password reset links carry login tokens.
+    "connect-src": [new URL(supabaseUrl).origin],
     // PDF previews.
     "frame-src": ["blob:"],
     "worker-src": ["'self'"],
