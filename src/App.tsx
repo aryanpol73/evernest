@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import AppLayout from "@/components/AppLayout";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import FamilyTreePage from "./pages/FamilyTreePage";
 import MembersPage from "./pages/MembersPage";
@@ -32,6 +33,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/family-tree" element={<FamilyTreePage />} />

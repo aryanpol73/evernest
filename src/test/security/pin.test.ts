@@ -30,7 +30,8 @@ describe("server-side PIN", () => {
   beforeAll(async () => {
     db = await createDatabase();
     const files = migrationFiles();
-    await applyMigrations(db, files.slice(0, -1));
+    const hardening = files.indexOf("20261104120000_security_hardening.sql");
+    await applyMigrations(db, files.slice(0, hardening));
 
     // A user whose PIN was saved by the old client: SHA-256 of pin + salt.
     await createUser(db, LEGACY_USER);
@@ -38,7 +39,7 @@ describe("server-side PIN", () => {
     const legacyHash = createHash("sha256").update(`135790${salt}`).digest("hex");
     await db.query("UPDATE public.user_settings SET pin_hash = $1, pin_salt = $2 WHERE id = $3", [legacyHash, salt, LEGACY_USER]);
 
-    await applyMigrations(db, files.slice(-1));
+    await applyMigrations(db, files.slice(hardening));
     await createUser(db, USER);
     await createUser(db, LOCKOUT_USER);
     await createUser(db, RESET_USER);

@@ -4,12 +4,16 @@
 
 ## Before anything else: release the security fixes
 
-The code below is complete in the working tree but **not committed, pushed, or applied**. Users are unprotected until these steps are done.
+The fixes below are in the repository but **not pushed or applied**. Users are unprotected until these steps are done.
 
 1. Check the live database for signs of the storage exploit (see below).
-2. Apply `supabase/migrations/20261104120000_security_hardening.sql`.
-3. Deploy the client at the same time. The migration drops the PIN columns, so older clients stop showing the PIN lock, and new clients show an error screen until the migration is applied.
-4. In the deployed app, sign in and test upload, preview, PIN set, wrong PIN, and Forgot PIN.
+2. Configure Supabase Auth (`supabase config push`, or the dashboard):
+   - Add `<your site URL>/reset-password` to the allowed redirect URLs, or reset emails will send people to the wrong page.
+   - Set minimum password length to 10, requiring letters and digits, as in `supabase/config.toml`.
+   - Confirm TOTP MFA is enabled.
+3. Apply both migrations in order: `20261104120000_security_hardening.sql`, then `20261104130000_require_mfa_when_enrolled.sql`.
+4. Deploy the client at the same time. The first migration drops the PIN columns, so older clients stop showing the PIN lock, and new clients show an error screen until it is applied. Pushing to `main` may deploy through Lovable, so treat the push as the deploy.
+5. In the deployed app, test upload, preview, PIN set, wrong PIN, Forgot PIN, forgot password, and MFA on, sign-in with a code, and MFA off.
 
 ### Exploit check for the live database
 
@@ -35,8 +39,9 @@ Also check for a user reading or deleting objects outside their own family folde
 | SEC-2 | Server-side PIN with bcrypt, lockout, and recovery | Done in repo, not released |
 | SEC-3 | Safe previews and upload validation | Done in repo, not released |
 | SEC-4 | Dependency advisories. `package-lock.json` drift is fixed, `bun.lock` is now stale | Open |
-| SEC-5 | Password reset, stronger password policy, MFA (TOTP) | Open, next |
-| SEC-6 | Audit log for document access and security events | Open |
+| SEC-5 | Password reset, stronger password policy, MFA (TOTP) enforced in RLS | Done in repo, not released |
+| SEC-6 | Audit log for document access and security events | Open, next |
+| SEC-11 | MFA recovery for lost devices (recovery codes or a support process) | Open, needed before MFA is promoted to users |
 | SEC-7 | Content-Security-Policy and security headers on the host | Open |
 | SEC-8 | Correct landing page claims (F-4) | Blocked on owner decision |
 | SEC-9 | Data export and account deletion (advertised; required for DPDP) | Open |
@@ -51,3 +56,5 @@ Family invites and roles, billing, OCR and extraction, hybrid search, the ground
 
 - Database tests run real Postgres (PGlite) with a stub of Supabase's `auth` and `storage` schemas and default privileges. They do not cover Supabase's Storage API or Auth service.
 - `reset_pin_after_login` relies on the JWT `amr` claim. Its format is assumed from Supabase documentation, so confirm Forgot PIN in a real project.
+- `mfa_satisfied` reads `auth.mfa_factors` as the function owner. The test stub cannot prove that owner has access on hosted Supabase, so confirm MFA end to end in a real project. If it lacks access, every RLS check on the protected tables fails with an error.
+- MFA, password reset, and the Settings screens were tested with mocked Supabase Auth. In a browser, only the `/auth` modes and the invalid-link state of `/reset-password` were checked.

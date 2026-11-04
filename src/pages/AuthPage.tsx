@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TreePine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MIN_PASSWORD_LENGTH, validateNewPassword } from "@/lib/passwordPolicy";
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
+  const [isForgot, setIsForgot] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -17,8 +19,28 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // The reply is the same either way, so this can't reveal who has an account.
+  const handleForgotPassword = async () => {
+    setLoading(true);
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+    setLoading(false);
+    setIsForgot(false);
+    toast({ title: "Check your email", description: "If that address has an account, we've sent a reset link." });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isForgot) {
+      await handleForgotPassword();
+      return;
+    }
+    if (isSignUp) {
+      const problem = validateNewPassword(password, email);
+      if (problem) {
+        toast({ title: "Choose a stronger password", description: problem, variant: "destructive" });
+        return;
+      }
+    }
     setLoading(true);
     try {
       if (isSignUp) {
@@ -49,12 +71,12 @@ export default function AuthPage() {
             <TreePine className="h-8 w-8 text-primary" />
             <span className="text-2xl font-bold">EverNest</span>
           </div>
-          <h1 className="text-2xl font-bold">{isSignUp ? "Create your account" : "Welcome back"}</h1>
-          <p className="text-muted-foreground mt-1">{isSignUp ? "Start organizing your family's life" : "Sign in to your family workspace"}</p>
+          <h1 className="text-2xl font-bold">{isForgot ? "Reset your password" : isSignUp ? "Create your account" : "Welcome back"}</h1>
+          <p className="text-muted-foreground mt-1">{isForgot ? "We'll email you a reset link" : isSignUp ? "Start organizing your family's life" : "Sign in to your family workspace"}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
-          {isSignUp && (
+          {isSignUp && !isForgot && (
             <div>
               <Label htmlFor="name">Full Name</Label>
               <Input id="name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your full name" required />
@@ -62,20 +84,37 @@ export default function AuthPage() {
           )}
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
+            <Input id="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
           </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} />
-          </div>
+          {!isForgot && (
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={isSignUp ? MIN_PASSWORD_LENGTH : undefined}
+              />
+              {isSignUp && <p className="text-xs text-muted-foreground mt-1">At least {MIN_PASSWORD_LENGTH} characters, with letters and numbers.</p>}
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Loading..." : isSignUp ? "Create Account" : "Sign In"}
+            {loading ? "Loading..." : isForgot ? "Send Reset Link" : isSignUp ? "Create Account" : "Sign In"}
           </Button>
+          {!isSignUp && (
+            <button type="button" onClick={() => setIsForgot(!isForgot)} className="block w-full text-center text-sm text-primary hover:underline">
+              {isForgot ? "Back to sign in" : "Forgot password?"}
+            </button>
+          )}
         </form>
 
         <p className="text-center text-sm text-muted-foreground mt-4">
           {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-          <button onClick={() => setIsSignUp(!isSignUp)} className="text-primary font-medium hover:underline">
+          <button onClick={() => { setIsSignUp(!isSignUp); setIsForgot(false); }} className="text-primary font-medium hover:underline">
             {isSignUp ? "Sign in" : "Sign up"}
           </button>
         </p>

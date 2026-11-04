@@ -21,6 +21,13 @@ const SUPABASE_STUB = `
     raw_user_meta_data jsonb NOT NULL DEFAULT '{}'
   );
 
+  CREATE TYPE auth.factor_status AS ENUM ('unverified', 'verified');
+  CREATE TABLE auth.mfa_factors (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    status auth.factor_status NOT NULL
+  );
+
   CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
     SELECT NULLIF(current_setting('request.jwt.claims', true), '')::jsonb
   $$;

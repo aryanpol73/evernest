@@ -45,7 +45,7 @@ The master context indexes nine documents under `docs/`. None were in the reposi
 | F-2 | High | Previews rendered uploaded content in an unsandboxed same-origin iframe, so an HTML or SVG file could run script and read the session token | Fixed in repo by SEC-3 |
 | F-3 | High | `documents` RLS checked `user_id` only, so rows could reference another family or another family's member | Fixed in repo by SEC-1 |
 | F-4 | High | Landing page claims are not supported by the code: "AES-256… unreadable to anyone but you", "GDPR Compliant", "Stored on AWS", "Export… anytime" | **Open, needs owner decision** |
-| F-5 | High | No MFA; 6-character passwords; "Forgot password" flow missing | Open (SEC-5) |
+| F-5 | High | No MFA; 6-character passwords; "Forgot password" flow missing | Fixed in repo by SEC-5. Lost-device recovery is open (SEC-11) |
 | F-6 | Medium | Allowed file types were enforced only by the browser file picker | Fixed in repo by SEC-1 and SEC-3 |
 | F-7 | Medium | "Forgot PIN" linked to a `/reset-password` route that does not exist | Fixed in repo by SEC-2 |
 | F-8 | Medium | Session token is stored in `localStorage`, so the PIN lock is a device convenience and not a data boundary | Open, documented in ADR-003 |

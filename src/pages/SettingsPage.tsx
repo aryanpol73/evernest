@@ -13,6 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sun, Moon, Shield, Lock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
+import { MfaSettings } from "@/components/MfaSettings";
+import { validateNewPassword } from "@/lib/passwordPolicy";
+import { verifyCurrentPassword } from "@/lib/reauth";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -28,6 +31,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || "");
   const [familyName, setFamilyName] = useState("");
   const [familyInitialized, setFamilyInitialized] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -60,13 +64,19 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) { toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" }); return; }
-    if (newPassword.length < 6) { toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" }); return; }
+    const problem = validateNewPassword(newPassword, user?.email);
+    if (problem) { toast({ title: "Error", description: problem, variant: "destructive" }); return; }
+    if (!user?.email) return;
     setSaving(true);
     try {
+      const confirmed = await verifyCurrentPassword(user.email, currentPassword);
+      setCurrentPassword("");
+      if (!confirmed) throw new Error("Your current password is incorrect.");
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
+      await supabase.auth.signOut({ scope: "others" });
       setNewPassword(""); setConfirmPassword("");
-      toast({ title: "Password updated", description: "Your password has been changed." });
+      toast({ title: "Password updated", description: "Your password has been changed, and other devices have been signed out." });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally { setSaving(false); }
@@ -147,12 +157,15 @@ export default function SettingsPage() {
             <div className="max-w-lg space-y-6">
               <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /><h3 className="font-semibold">Change Password</h3></div>
-                <div><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" /></div>
-                <div><Label>Confirm Password</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" /></div>
-                <Button onClick={handleChangePassword} disabled={saving || !newPassword}>
+                <div><Label>Current Password</Label><Input type="password" autoComplete="current-password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" /></div>
+                <div><Label>New Password</Label><Input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" /></div>
+                <div><Label>Confirm Password</Label><Input type="password" autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" /></div>
+                <Button onClick={handleChangePassword} disabled={saving || !newPassword || !currentPassword}>
                   {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Update Password
                 </Button>
               </div>
+
+              <MfaSettings />
 
               <div className="rounded-lg border bg-card p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /><h3 className="font-semibold">App PIN Lock</h3></div>

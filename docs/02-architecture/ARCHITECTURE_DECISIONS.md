@@ -43,3 +43,17 @@ It contains only the public URL and `anon` key, which ship in the browser bundle
 **Status:** Accepted
 
 Tests in `src/test/security/` run migrations on in-process Postgres and attack them as real database roles. This needs no Docker, so it can run anywhere `npm test` runs. Any new table or policy must add tests there, including an attempt from a second family.
+
+## ADR-006: MFA is enforced in the database
+
+**Status:** Accepted
+
+Restrictive RLS policies on every family table and the `family-documents` bucket call `mfa_satisfied()`. A user with a verified factor needs an `aal2` token, so a stolen password alone returns no data, even through direct API calls. The screen in `ProtectedRoute` is only the user experience of that rule. New family tables must add the same policy.
+
+Confirming a password in Settings uses a temporary client (`src/lib/reauth.ts`), because signing in on the main client would drop an MFA session to `aal1`.
+
+**Accepted risks:**
+
+- **Lost devices:** Supabase has no built-in recovery codes. Someone who loses their authenticator needs an operator to remove the factor, and that process must verify identity carefully, because it bypasses MFA (SEC-11).
+- **PIN functions at `aal1`:** someone with only the password can set or clear the PIN. They still cannot read family data.
+- **Current password check is client-side:** a stolen session can call Supabase Auth directly to change the password without it. Supabase's "secure password change" setting would close this, but needs a reauthentication email flow first.
