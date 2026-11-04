@@ -12,6 +12,7 @@ import { OnboardingModal } from "@/components/OnboardingModal";
 import { PinSetupModal } from "@/components/PinSetupModal";
 import { PinLockScreen } from "@/components/PinLockScreen";
 import { FamilySwitcher } from "@/components/FamilySwitcher";
+import { isFilePickerOpen, watchFilePickers } from "@/lib/filePickerLock";
 import { usePinStatus, useUserSettings } from "@/hooks/useUserSettings";
 import { useFamily } from "@/hooks/useFamily";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,7 +68,10 @@ export default function AppLayout() {
 
     const resetTimer = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => setPinLocked(true), INACTIVITY_TIMEOUT);
+      timer = setTimeout(() => {
+        if (isFilePickerOpen()) resetTimer();
+        else setPinLocked(true);
+      }, INACTIVITY_TIMEOUT);
     };
 
     const events = ["mousedown", "keydown", "touchstart", "scroll"];
@@ -76,11 +80,13 @@ export default function AppLayout() {
 
     // Lock on visibility change
     const handleVisibility = () => {
-      if (document.hidden) setPinLocked(true);
+      if (document.hidden && !isFilePickerOpen()) setPinLocked(true);
     };
     document.addEventListener("visibilitychange", handleVisibility);
+    const stopWatchingPickers = watchFilePickers();
 
     return () => {
+      stopWatchingPickers();
       clearTimeout(timer);
       events.forEach(e => document.removeEventListener(e, resetTimer));
       document.removeEventListener("visibilitychange", handleVisibility);
